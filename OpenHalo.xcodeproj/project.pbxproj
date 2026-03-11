@@ -1,0 +1,564 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08EEAEFE27252830D42EF672 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 806DDC3C923C4CEE9BFB7790 /* Assets.xcassets */; };
+		0922DE1892637A345AB8BEE0 /* OpenHaloTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */; };
+		0F430A9080D57974C8EAF5B9 /* AIResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D93EEE55D87CD22AFCF3D5 /* AIResponse.swift */; };
+		3A231D599E0FF01597DC59F6 /* OpenRouterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F4E61010EC68A57DC9F69B /* OpenRouterClient.swift */; };
+		443CB801E01233F8C6C24C0E /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0842EB8A1F1EA092133F6C67 /* AppSettings.swift */; };
+		4FB393F9F24A56B209C6E4BD /* OpenHaloApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02CF9E9D9F921433628CDF0 /* OpenHaloApp.swift */; };
+		593CDFAB1FAA779CD06C42B5 /* ChatPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE496202D5B71E740D42570 /* ChatPanelView.swift */; };
+		62114AEC3495DC93B69B8E74 /* AnnotatedScreenshotRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418A0605D26A83A82E5055ED /* AnnotatedScreenshotRenderer.swift */; };
+		6BCE30DFC1E5A7008ED11A97 /* CGImageExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F645419263338029533A4663 /* CGImageExtensions.swift */; };
+		73F203C4F78755EA1393D4F1 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D6003E2DA9A0DE75658A15 /* ChatMessage.swift */; };
+		76AD97D3822BE5250D854F70 /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B012D74BDE228EF51B45ED3 /* OverlayWindow.swift */; };
+		7E97E185CC97AAC5BE94856F /* ChatBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22F629CDF3FA977FF7349C7 /* ChatBubbleView.swift */; };
+		7F6AB99C58B1592939F76B8D /* JSONSchemaParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8B4C0154C9EFD63EF64FBD /* JSONSchemaParser.swift */; };
+		83333A1CC68DF43C441740DD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1FAA2C4015458E1CF86314 /* SettingsView.swift */; };
+		85E348F8E3B3BBFC8EDCB1CC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D2928644B1C73B5846F585 /* AppDelegate.swift */; };
+		8B8C3B91FF594FD1597C8C77 /* HotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07ABE79904E21F4F35181BCB /* HotkeyService.swift */; };
+		8FF4064801F4D49C535DB345 /* ScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF1848218BFD50167A842D5 /* ScreenGeometry.swift */; };
+		93A780ACD97D5A136782B543 /* ScreenCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52305C1BCCB6B0617E7D34EF /* ScreenCaptureService.swift */; };
+		9A67AFFBC58F7426DE2B7FAD /* OverlayDrawingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615F16BCBF4D6E5924FF1863 /* OverlayDrawingView.swift */; };
+		9D6AED6ACE4280410EC218F7 /* AIAnalysisPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3171CA309DB7F6959D5BFBDD /* AIAnalysisPipeline.swift */; };
+		A970A5FD2BFBE8D0553AA142 /* HighlightRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */; };
+		ADCF0BF1F7AD2F5777177C29 /* HighlightRectangleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20989FE2E0741CD37EAB1FDA /* HighlightRectangleView.swift */; };
+		BACDCA0958B453A10ED2FA82 /* AIRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */; };
+		BED67728095AB9CA6D785752 /* AnalysisDebugSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */; };
+		DDADACC7E2344DBE6970FA8E /* OverlayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77732294A8B8F9F47086110 /* OverlayContentView.swift */; };
+		F91A907B2B5E9BC046B54E22 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709AF939E737EDFB0CAAC5C1 /* AppState.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0B3792638A4846283B577ED1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DDC9E8F92032B2A0931020AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C7446330AE2BDE64EEC18E16;
+			remoteInfo = OpenHalo;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		07ABE79904E21F4F35181BCB /* HotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyService.swift; sourceTree = "<group>"; };
+		0842EB8A1F1EA092133F6C67 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		13F4E61010EC68A57DC9F69B /* OpenRouterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClient.swift; sourceTree = "<group>"; };
+		1AE496202D5B71E740D42570 /* ChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPanelView.swift; sourceTree = "<group>"; };
+		20989FE2E0741CD37EAB1FDA /* HighlightRectangleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRectangleView.swift; sourceTree = "<group>"; };
+		3171CA309DB7F6959D5BFBDD /* AIAnalysisPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisPipeline.swift; sourceTree = "<group>"; };
+		418A0605D26A83A82E5055ED /* AnnotatedScreenshotRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotatedScreenshotRenderer.swift; sourceTree = "<group>"; };
+		4CF1848218BFD50167A842D5 /* ScreenGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenGeometry.swift; sourceTree = "<group>"; };
+		52305C1BCCB6B0617E7D34EF /* ScreenCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureService.swift; sourceTree = "<group>"; };
+		5BC990201D7DB8F7696C79A3 /* OpenHalo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenHalo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		615F16BCBF4D6E5924FF1863 /* OverlayDrawingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayDrawingView.swift; sourceTree = "<group>"; };
+		616602D39FECD746267CF9E8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6B1FAA2C4015458E1CF86314 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		709AF939E737EDFB0CAAC5C1 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		77D2928644B1C73B5846F585 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		806DDC3C923C4CEE9BFB7790 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9B012D74BDE228EF51B45ED3 /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
+		9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenHaloTests.swift; sourceTree = "<group>"; };
+		A1D6003E2DA9A0DE75658A15 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		A3FA5CF16B21CDBCF11D73B1 /* OpenHalo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenHalo.entitlements; sourceTree = "<group>"; };
+		A77732294A8B8F9F47086110 /* OverlayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayContentView.swift; sourceTree = "<group>"; };
+		AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisDebugSession.swift; sourceTree = "<group>"; };
+		B22F629CDF3FA977FF7349C7 /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
+		B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRegion.swift; sourceTree = "<group>"; };
+		C4FBCA3D25821AEDD6EA9183 /* OpenHaloTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenHaloTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB8B4C0154C9EFD63EF64FBD /* JSONSchemaParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONSchemaParser.swift; sourceTree = "<group>"; };
+		D02CF9E9D9F921433628CDF0 /* OpenHaloApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenHaloApp.swift; sourceTree = "<group>"; };
+		E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRequest.swift; sourceTree = "<group>"; };
+		F645419263338029533A4663 /* CGImageExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGImageExtensions.swift; sourceTree = "<group>"; };
+		F9D93EEE55D87CD22AFCF3D5 /* AIResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponse.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		173FCADE99033032C2DACCDB /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B22F629CDF3FA977FF7349C7 /* ChatBubbleView.swift */,
+				1AE496202D5B71E740D42570 /* ChatPanelView.swift */,
+				20989FE2E0741CD37EAB1FDA /* HighlightRectangleView.swift */,
+				A77732294A8B8F9F47086110 /* OverlayContentView.swift */,
+				615F16BCBF4D6E5924FF1863 /* OverlayDrawingView.swift */,
+				9B012D74BDE228EF51B45ED3 /* OverlayWindow.swift */,
+				6B1FAA2C4015458E1CF86314 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		21B9108557BB6D81D6321D67 = {
+			isa = PBXGroup;
+			children = (
+				A3414D28E6E30FCD8A113FA4 /* OpenHalo */,
+				DF08D1BD331D5750528F26C1 /* OpenHaloTests */,
+				59FAE4A31788BB9AC2DFD22A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		59FAE4A31788BB9AC2DFD22A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5BC990201D7DB8F7696C79A3 /* OpenHalo.app */,
+				C4FBCA3D25821AEDD6EA9183 /* OpenHaloTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6C18CCD465C9162153ED6106 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				3171CA309DB7F6959D5BFBDD /* AIAnalysisPipeline.swift */,
+				07ABE79904E21F4F35181BCB /* HotkeyService.swift */,
+				13F4E61010EC68A57DC9F69B /* OpenRouterClient.swift */,
+				52305C1BCCB6B0617E7D34EF /* ScreenCaptureService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		828F4FF2DBA01A99E1A2E3C0 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */,
+				418A0605D26A83A82E5055ED /* AnnotatedScreenshotRenderer.swift */,
+				F645419263338029533A4663 /* CGImageExtensions.swift */,
+				CB8B4C0154C9EFD63EF64FBD /* JSONSchemaParser.swift */,
+				4CF1848218BFD50167A842D5 /* ScreenGeometry.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		A3414D28E6E30FCD8A113FA4 /* OpenHalo */ = {
+			isa = PBXGroup;
+			children = (
+				806DDC3C923C4CEE9BFB7790 /* Assets.xcassets */,
+				616602D39FECD746267CF9E8 /* Info.plist */,
+				A3FA5CF16B21CDBCF11D73B1 /* OpenHalo.entitlements */,
+				F3B492BA1B8F40D084E9678C /* App */,
+				E4D027FD7CC600971A9364FA /* Models */,
+				6C18CCD465C9162153ED6106 /* Services */,
+				828F4FF2DBA01A99E1A2E3C0 /* Utilities */,
+				173FCADE99033032C2DACCDB /* Views */,
+			);
+			path = OpenHalo;
+			sourceTree = "<group>";
+		};
+		DF08D1BD331D5750528F26C1 /* OpenHaloTests */ = {
+			isa = PBXGroup;
+			children = (
+				9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */,
+			);
+			path = OpenHaloTests;
+			sourceTree = "<group>";
+		};
+		E4D027FD7CC600971A9364FA /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */,
+				F9D93EEE55D87CD22AFCF3D5 /* AIResponse.swift */,
+				0842EB8A1F1EA092133F6C67 /* AppSettings.swift */,
+				A1D6003E2DA9A0DE75658A15 /* ChatMessage.swift */,
+				B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F3B492BA1B8F40D084E9678C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				77D2928644B1C73B5846F585 /* AppDelegate.swift */,
+				709AF939E737EDFB0CAAC5C1 /* AppState.swift */,
+				D02CF9E9D9F921433628CDF0 /* OpenHaloApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9D874A845158543F080132DA /* OpenHaloTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 93CCD930FE206D63AFB1972C /* Build configuration list for PBXNativeTarget "OpenHaloTests" */;
+			buildPhases = (
+				A0460CEE44910848C5C0D0A5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D808A890BD9683B9C6487F54 /* PBXTargetDependency */,
+			);
+			name = OpenHaloTests;
+			packageProductDependencies = (
+			);
+			productName = OpenHaloTests;
+			productReference = C4FBCA3D25821AEDD6EA9183 /* OpenHaloTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		C7446330AE2BDE64EEC18E16 /* OpenHalo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 02C2290983D1947BD566E7EE /* Build configuration list for PBXNativeTarget "OpenHalo" */;
+			buildPhases = (
+				F09D118096D5EE539E1B7079 /* Sources */,
+				D36943C202EFFE193577E3B5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenHalo;
+			packageProductDependencies = (
+			);
+			productName = OpenHalo;
+			productReference = 5BC990201D7DB8F7696C79A3 /* OpenHalo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DDC9E8F92032B2A0931020AE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					9D874A845158543F080132DA = {
+						DevelopmentTeam = ZBTZQYM487;
+						ProvisioningStyle = Manual;
+					};
+					C7446330AE2BDE64EEC18E16 = {
+						DevelopmentTeam = ZBTZQYM487;
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 21D30D2F25F4D6CA151CA7B3 /* Build configuration list for PBXProject "OpenHalo" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 21B9108557BB6D81D6321D67;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 59FAE4A31788BB9AC2DFD22A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C7446330AE2BDE64EEC18E16 /* OpenHalo */,
+				9D874A845158543F080132DA /* OpenHaloTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D36943C202EFFE193577E3B5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08EEAEFE27252830D42EF672 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A0460CEE44910848C5C0D0A5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0922DE1892637A345AB8BEE0 /* OpenHaloTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F09D118096D5EE539E1B7079 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9D6AED6ACE4280410EC218F7 /* AIAnalysisPipeline.swift in Sources */,
+				BACDCA0958B453A10ED2FA82 /* AIRequest.swift in Sources */,
+				0F430A9080D57974C8EAF5B9 /* AIResponse.swift in Sources */,
+				BED67728095AB9CA6D785752 /* AnalysisDebugSession.swift in Sources */,
+				62114AEC3495DC93B69B8E74 /* AnnotatedScreenshotRenderer.swift in Sources */,
+				85E348F8E3B3BBFC8EDCB1CC /* AppDelegate.swift in Sources */,
+				443CB801E01233F8C6C24C0E /* AppSettings.swift in Sources */,
+				F91A907B2B5E9BC046B54E22 /* AppState.swift in Sources */,
+				6BCE30DFC1E5A7008ED11A97 /* CGImageExtensions.swift in Sources */,
+				7E97E185CC97AAC5BE94856F /* ChatBubbleView.swift in Sources */,
+				73F203C4F78755EA1393D4F1 /* ChatMessage.swift in Sources */,
+				593CDFAB1FAA779CD06C42B5 /* ChatPanelView.swift in Sources */,
+				ADCF0BF1F7AD2F5777177C29 /* HighlightRectangleView.swift in Sources */,
+				A970A5FD2BFBE8D0553AA142 /* HighlightRegion.swift in Sources */,
+				8B8C3B91FF594FD1597C8C77 /* HotkeyService.swift in Sources */,
+				7F6AB99C58B1592939F76B8D /* JSONSchemaParser.swift in Sources */,
+				4FB393F9F24A56B209C6E4BD /* OpenHaloApp.swift in Sources */,
+				3A231D599E0FF01597DC59F6 /* OpenRouterClient.swift in Sources */,
+				DDADACC7E2344DBE6970FA8E /* OverlayContentView.swift in Sources */,
+				9A67AFFBC58F7426DE2B7FAD /* OverlayDrawingView.swift in Sources */,
+				76AD97D3822BE5250D854F70 /* OverlayWindow.swift in Sources */,
+				93A780ACD97D5A136782B543 /* ScreenCaptureService.swift in Sources */,
+				8FF4064801F4D49C535DB345 /* ScreenGeometry.swift in Sources */,
+				83333A1CC68DF43C441740DD /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D808A890BD9683B9C6487F54 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C7446330AE2BDE64EEC18E16 /* OpenHalo */;
+			targetProxy = 0B3792638A4846283B577ED1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		12FD42901FE553C8B13456ED /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				SYMROOT = "$(PROJECT_DIR)/build";
+			};
+			name = Debug;
+		};
+		59373BCA5AA70B033D36FD47 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZBTZQYM487;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.openhalo.tests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenHalo.app/Contents/MacOS/OpenHalo";
+			};
+			name = Release;
+		};
+		5A326D287105A9230C9D5E40 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZBTZQYM487;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.openhalo.tests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenHalo.app/Contents/MacOS/OpenHalo";
+			};
+			name = Debug;
+		};
+		675FC4B6C355473F526CE19A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OpenHalo/OpenHalo.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZBTZQYM487;
+				INFOPLIST_FILE = OpenHalo/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openhalo.app;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		BDE9876B0E191FF08AD09C73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				SYMROOT = "$(PROJECT_DIR)/build";
+			};
+			name = Release;
+		};
+		EDD60C71A133AD70AC3580F2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OpenHalo/OpenHalo.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZBTZQYM487;
+				INFOPLIST_FILE = OpenHalo/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openhalo.app;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		02C2290983D1947BD566E7EE /* Build configuration list for PBXNativeTarget "OpenHalo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				675FC4B6C355473F526CE19A /* Debug */,
+				EDD60C71A133AD70AC3580F2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		21D30D2F25F4D6CA151CA7B3 /* Build configuration list for PBXProject "OpenHalo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				12FD42901FE553C8B13456ED /* Debug */,
+				BDE9876B0E191FF08AD09C73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		93CCD930FE206D63AFB1972C /* Build configuration list for PBXNativeTarget "OpenHaloTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A326D287105A9230C9D5E40 /* Debug */,
+				59373BCA5AA70B033D36FD47 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DDC9E8F92032B2A0931020AE /* Project object */;
+}

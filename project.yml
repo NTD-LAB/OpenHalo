@@ -1,0 +1,64 @@
+name: OpenHalo
+options:
+  bundleIdPrefix: com.openhalo
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SYMROOT: $(PROJECT_DIR)/build
+
+targets:
+  OpenHalo:
+    type: application
+    platform: macOS
+    sources:
+      - OpenHalo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openhalo.app
+        INFOPLIST_FILE: OpenHalo/Info.plist
+        CODE_SIGN_ENTITLEMENTS: OpenHalo/OpenHalo.entitlements
+        DEVELOPMENT_TEAM: ZBTZQYM487
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: Apple Development
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+
+  OpenHaloTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - OpenHaloTests
+    dependencies:
+      - target: OpenHalo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openhalo.tests
+        DEVELOPMENT_TEAM: ZBTZQYM487
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: Apple Development
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  OpenHalo:
+    build:
+      targets:
+        OpenHalo: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - OpenHaloTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
