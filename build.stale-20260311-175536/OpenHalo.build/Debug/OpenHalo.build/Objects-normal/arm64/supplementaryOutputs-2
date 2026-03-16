@@ -1,0 +1,23 @@
+{
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/App/AppDelegate.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppDelegate.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppDelegate.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Models/AppSettings.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppSettings.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppSettings.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppSettings.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppSettings.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppSettings.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Utilities/AnnotatedScreenshotRenderer.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AnnotatedScreenshotRenderer.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AnnotatedScreenshotRenderer.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AnnotatedScreenshotRenderer.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AnnotatedScreenshotRenderer.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AnnotatedScreenshotRenderer.swiftdeps"
+  }
+}

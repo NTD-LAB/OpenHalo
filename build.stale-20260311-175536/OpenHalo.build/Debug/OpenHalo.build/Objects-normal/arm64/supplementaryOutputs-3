@@ -1,0 +1,23 @@
+{
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/App/AppState.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppState.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppState.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppState.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppState.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/AppState.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Utilities/CGImageExtensions.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/CGImageExtensions.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/CGImageExtensions.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/CGImageExtensions.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/CGImageExtensions.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/CGImageExtensions.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Views/ChatBubbleView.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatBubbleView.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatBubbleView.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatBubbleView.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatBubbleView.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatBubbleView.swiftdeps"
+  }
+}

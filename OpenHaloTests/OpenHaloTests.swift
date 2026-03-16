@@ -317,7 +317,11 @@ final class OpenHaloTests: XCTestCase {
         ```json
         {
           "status": "ACCEPT",
-          "preferred_candidate": "best_so_far",
+          "active_candidate_description": "toolbar icon near the close controls",
+          "active_candidate_assessment": "The active box is not the close button, but c1 already is.",
+          "best_candidate_id": "c1",
+          "best_candidate_score": 91,
+          "best_candidate_note": "Candidate c1 already cleanly covers the target.",
           "reason": "already aligned",
           "confidence": 0.91
         }
@@ -328,26 +332,31 @@ final class OpenHaloTests: XCTestCase {
         let response = try JSONDecoder().decode(AIHighlightRefinementResponse.self, from: data)
 
         XCTAssertEqual(response.status, .accept)
-        XCTAssertEqual(response.preferredCandidate, .bestSoFar)
+        XCTAssertEqual(response.activeCandidateDescription, "toolbar icon near the close controls")
+        XCTAssertEqual(response.activeCandidateAssessment, "The active box is not the close button, but c1 already is.")
+        XCTAssertEqual(response.bestCandidateID, "c1")
+        XCTAssertEqual(response.bestCandidateScore, 91)
+        XCTAssertEqual(response.bestCandidateNote, "Candidate c1 already cleanly covers the target.")
         XCTAssertNil(response.action)
         XCTAssertNil(response.stepSize)
         XCTAssertEqual(response.confidence ?? -1, 0.91, accuracy: 0.0001)
     }
 
-    func testJSONSchemaParserDecodesRefinementAdjustResponse() throws {
+    func testJSONSchemaParserDecodesRefinementMoveResponse() throws {
         let input = """
         ```json
         {
-          "status": "ADJUST",
-          "preferred_candidate": "current",
-          "coordinate_space": "crop",
-          "target_box": {
-            "x": 0.42,
-            "y": 0.31,
-            "width": 0.18,
-            "height": 0.12
+          "status": "MOVE",
+          "active_candidate_description": "browser tab title",
+          "active_candidate_assessment": "The active box is on a tab, not on the new-tab button.",
+          "best_candidate_id": "proposal",
+          "best_candidate_score": 84,
+          "best_candidate_note": "Moving right by one box-width lands on the target control.",
+          "move_xy": {
+            "x": 1.0,
+            "y": -0.5
           },
-          "reason": "the target is visible in the crop and should be tightened",
+          "reason": "The requested control is immediately to the right of the current box.",
           "confidence": 0.88
         }
         ```
@@ -356,18 +365,74 @@ final class OpenHaloTests: XCTestCase {
         let data = try JSONSchemaParser.extractJSON(from: input)
         let response = try JSONDecoder().decode(AIHighlightRefinementResponse.self, from: data)
 
-        XCTAssertEqual(response.status, .adjust)
-        XCTAssertEqual(response.preferredCandidate, .current)
-        XCTAssertEqual(response.coordinateSpace, .crop)
-        XCTAssertNotNil(response.targetBox)
-        XCTAssertEqual(response.targetBox!.x, 0.42, accuracy: 0.0001)
-        XCTAssertEqual(response.targetBox!.y, 0.31, accuracy: 0.0001)
-        XCTAssertEqual(response.targetBox!.width, 0.18, accuracy: 0.0001)
-        XCTAssertEqual(response.targetBox!.height, 0.12, accuracy: 0.0001)
+        XCTAssertEqual(response.status, .move)
+        XCTAssertEqual(response.activeCandidateDescription, "browser tab title")
+        XCTAssertEqual(response.activeCandidateAssessment, "The active box is on a tab, not on the new-tab button.")
+        XCTAssertEqual(response.bestCandidateID, "proposal")
+        XCTAssertEqual(response.bestCandidateScore, 84)
+        XCTAssertEqual(response.moveXY?.x ?? -999, 1.0, accuracy: 0.0001)
+        XCTAssertEqual(response.moveXY?.y ?? -999, -0.5, accuracy: 0.0001)
         XCTAssertEqual(response.confidence ?? -1, 0.88, accuracy: 0.0001)
     }
 
-    func testJSONSchemaParserTreatsLegacyActAsAdjustFallback() throws {
+    func testJSONSchemaParserDecodesMalformedLegacyRefinementAdjustWithoutThrowing() throws {
+        let input = """
+        {
+          "status": "adjust",
+          "active_candidate_description": "Chrome toolbar back navigation arrow",
+          "active_candidate_assessment": "The active box highlights the back button, not the Chrome window close control.",
+          "best_candidate_id": "proposal",
+          "best_candidate_score": 80,
+          "best_candidate_note": "Moving left to the macOS window control area will capture the Chrome close button.",
+          "proposal": {
+            "coordinate_space": "crop",
+            "target_box": {
+              "x": 0.02,
+              "y": null
+            }
+          },
+          "reason": "needs adjustment",
+          "confidence": 0.8
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            AIHighlightRefinementResponse.self,
+            from: Data(input.utf8)
+        )
+
+        XCTAssertEqual(response.status, .move)
+        XCTAssertEqual(response.bestCandidateID, "proposal")
+        XCTAssertEqual(response.coordinateSpace, .crop)
+        XCTAssertNil(response.targetBox)
+    }
+
+    func testJSONSchemaParserDecodesRefinementRelocalizeResponse() throws {
+        let input = """
+        {
+          "status": "relocalize",
+          "active_candidate_description": "browser extension icon in the toolbar",
+          "active_candidate_assessment": "The active box is in the wrong functional region.",
+          "best_candidate_id": "c1",
+          "best_candidate_score": 82,
+          "best_candidate_note": "Candidate c1 remains the best fallback while we restart the search.",
+          "reason": "Visible candidates are all in the wrong toolbar region.",
+          "confidence": 0.74
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            AIHighlightRefinementResponse.self,
+            from: Data(input.utf8)
+        )
+
+        XCTAssertEqual(response.status, .relocalize)
+        XCTAssertEqual(response.bestCandidateID, "c1")
+        XCTAssertEqual(response.bestCandidateScore, 82)
+        XCTAssertNil(response.targetBox)
+    }
+
+    func testJSONSchemaParserTreatsLegacyActAsMoveFallback() throws {
         let input = """
         ```json
         {
@@ -383,10 +448,36 @@ final class OpenHaloTests: XCTestCase {
         let data = try JSONSchemaParser.extractJSON(from: input)
         let response = try JSONDecoder().decode(AIHighlightRefinementResponse.self, from: data)
 
-        XCTAssertEqual(response.status, .adjust)
+        XCTAssertEqual(response.status, .move)
         XCTAssertEqual(response.action, .right)
         XCTAssertEqual(response.stepSize, .medium)
         XCTAssertEqual(response.confidence ?? -1, 0.73, accuracy: 0.0001)
+    }
+
+    func testApplyMoveKeepsSizeAndMovesByCurrentBoxUnits() {
+        let box = AIAnalysisResponse.BoundingBox(x: 0.40, y: 0.30, width: 0.20, height: 0.10)
+        let moved = AIAnalysisPipeline.applyMove(
+            to: box,
+            moveXY: .init(x: 1.0, y: -1.0)
+        )
+
+        XCTAssertEqual(moved.x, 0.60, accuracy: 0.0001)
+        XCTAssertEqual(moved.y, 0.20, accuracy: 0.0001)
+        XCTAssertEqual(moved.width, 0.20, accuracy: 0.0001)
+        XCTAssertEqual(moved.height, 0.10, accuracy: 0.0001)
+    }
+
+    func testApplyMovePreservesFloatPrecisionWithinRange() {
+        let box = AIAnalysisResponse.BoundingBox(x: 0.40, y: 0.30, width: 0.20, height: 0.10)
+        let moved = AIAnalysisPipeline.applyMove(
+            to: box,
+            moveXY: .init(x: 1.26, y: -4.9)
+        )
+
+        XCTAssertEqual(moved.x, 0.652, accuracy: 0.0001)
+        XCTAssertEqual(moved.y, 0.0, accuracy: 0.0001)
+        XCTAssertEqual(moved.width, 0.20, accuracy: 0.0001)
+        XCTAssertEqual(moved.height, 0.10, accuracy: 0.0001)
     }
 
     func testApplyActionMovesBoxRelativeToCurrentSize() {
@@ -424,32 +515,82 @@ final class OpenHaloTests: XCTestCase {
             boundingBox: AIAnalysisResponse.BoundingBox(x: 0.8, y: 0.0, width: 0.02, height: 0.02),
             elementType: "icon"
         )
-        let history = [
-            AIAnalysisResponse.BoundingBox(x: 0.70, y: 0.05, width: 0.02, height: 0.02),
-            AIAnalysisResponse.BoundingBox(x: 0.76, y: 0.03, width: 0.02, height: 0.02),
-            AIAnalysisResponse.BoundingBox(x: 0.80, y: 0.00, width: 0.02, height: 0.02)
+        let c0 = EpisodeCandidate(
+            id: "c0",
+            box: AIAnalysisResponse.BoundingBox(x: 0.70, y: 0.05, width: 0.02, height: 0.02),
+            passIndex: 0,
+            qualityScore: 62,
+            candidateDescription: "Initial guess near the Wi-Fi icon.",
+            evaluationNote: "Initial guess is near the target.",
+            origin: "initial_detection"
+        )
+        let c1 = EpisodeCandidate(
+            id: "c1",
+            box: AIAnalysisResponse.BoundingBox(x: 0.76, y: 0.03, width: 0.02, height: 0.02),
+            passIndex: 1,
+            qualityScore: 84,
+            candidateDescription: "Likely the true Wi-Fi icon.",
+            evaluationNote: "Closer to the true Wi-Fi icon.",
+            origin: "refinement_pass_1"
+        )
+        let c2 = EpisodeCandidate(
+            id: "c2",
+            box: AIAnalysisResponse.BoundingBox(x: 0.80, y: 0.00, width: 0.02, height: 0.02),
+            passIndex: 2,
+            qualityScore: 79,
+            candidateDescription: "Status icon slightly right of Wi-Fi.",
+            evaluationNote: "Slightly too far right.",
+            origin: "refinement_pass_2"
+        )
+        let cropCandidates = [
+            RenderedEpisodeCandidate(
+                candidateID: "c0",
+                box: AIAnalysisResponse.BoundingBox(x: 0.10, y: 0.20, width: 0.10, height: 0.15),
+                qualityScore: 62,
+                role: .history
+            ),
+            RenderedEpisodeCandidate(
+                candidateID: "c1",
+                box: AIAnalysisResponse.BoundingBox(x: 0.45, y: 0.22, width: 0.12, height: 0.18),
+                qualityScore: 84,
+                role: .best
+            ),
+            RenderedEpisodeCandidate(
+                candidateID: "c2",
+                box: AIAnalysisResponse.BoundingBox(x: 0.66, y: 0.0, width: 0.11, height: 0.17),
+                qualityScore: 79,
+                role: .active
+            )
         ]
 
         let prompt = AIAnalysisPipeline.buildRefinementUserPrompt(
             query: "Find the Wi-Fi icon",
             highlight: highlight,
-            currentBox: history.last!,
-            bestPresentationBox: history[1],
-            historyBoxes: history,
+            activeCandidate: c2,
+            bestCandidate: c1,
+            visibleCandidates: [c0, c1, c2],
             cropBox: AIAnalysisResponse.BoundingBox(x: 0.68, y: 0.0, width: 0.18, height: 0.12),
-            currentBoxInCrop: AIAnalysisResponse.BoundingBox(x: 0.66, y: 0.0, width: 0.11, height: 0.17),
-            bestBoxInCrop: AIAnalysisResponse.BoundingBox(x: 0.45, y: 0.22, width: 0.12, height: 0.18),
+            activeContentBox: AIAnalysisResponse.BoundingBox(x: 0.66, y: 0.0, width: 0.11, height: 0.17),
+            cropCandidates: cropCandidates,
             iteration: 3
         )
 
-        XCTAssertTrue(prompt.contains("Recent history oldest->newest"))
-        XCTAssertTrue(prompt.contains("1. x=0.7000"))
-        XCTAssertTrue(prompt.contains("Full-screen current box"))
-        XCTAssertTrue(prompt.contains("Full-screen best-so-far box"))
-        XCTAssertTrue(prompt.contains("Crop-local current box"))
-        XCTAssertTrue(prompt.contains("Crop-local best-so-far box"))
-        XCTAssertTrue(prompt.contains("choose which candidate is currently the better FINAL presentation box"))
-        XCTAssertTrue(prompt.contains("return accept with the better preferred_candidate"))
+        XCTAssertTrue(prompt.contains("Active candidate: c2"))
+        XCTAssertTrue(prompt.contains("Best candidate so far: c1"))
+        XCTAssertTrue(prompt.contains("Visible episode memory"))
+        XCTAssertTrue(prompt.contains("Image guide"))
+        XCTAssertTrue(prompt.contains("Image 3 is the raw contents of the active candidate box"))
+        XCTAssertTrue(prompt.contains("enlarged only for readability"))
+        XCTAssertTrue(prompt.contains("Exact active-candidate crop on full screen"))
+        XCTAssertTrue(prompt.contains("c0 role=history"))
+        XCTAssertTrue(prompt.contains("c1 role=best"))
+        XCTAssertTrue(prompt.contains("c2 role=active"))
+        XCTAssertTrue(prompt.contains("score=84"))
+        XCTAssertTrue(prompt.contains("description=\"Likely the true Wi-Fi icon.\""))
+        XCTAssertTrue(prompt.contains("assessment=\"Closer to the true Wi-Fi icon.\""))
+        XCTAssertTrue(prompt.contains("crop_box=x=0.4500"))
+        XCTAssertTrue(prompt.contains("best FINAL presentation box"))
+        XCTAssertTrue(prompt.contains("best_candidate_id"))
     }
 
     @MainActor
@@ -474,58 +615,199 @@ final class OpenHaloTests: XCTestCase {
 
         XCTAssertTrue(prompt.contains("Ignore the OpenHalo assistant window"))
         XCTAssertTrue(prompt.contains("Reason from UI semantics and app context"))
-        XCTAssertTrue(prompt.contains("Best-so-far presentation candidate"))
+        XCTAssertTrue(prompt.contains("Image 3"))
+        XCTAssertTrue(prompt.contains("raw contents of the ACTIVE candidate box, cropped exactly to the current box and enlarged only for visibility"))
+        XCTAssertTrue(prompt.contains("Use Image 3 to judge exactly what the ACTIVE candidate box contains"))
+        XCTAssertTrue(prompt.contains("preserves the exact box contents even if it has been enlarged for readability"))
+        XCTAssertTrue(prompt.contains("Best candidate so far"))
         XCTAssertTrue(prompt.contains("perfect click-precision is unnecessary"))
         XCTAssertTrue(prompt.contains("Slightly larger but stable is better than tiny and jittery"))
-        XCTAssertTrue(prompt.contains("preferred_candidate"))
+        XCTAssertTrue(prompt.contains("best_candidate_id"))
+        XCTAssertTrue(prompt.contains("active_candidate_description"))
+        XCTAssertTrue(prompt.contains("active_candidate_assessment"))
         XCTAssertTrue(prompt.contains("follow the provided schema exactly"))
-        XCTAssertTrue(prompt.contains("Always set preferred_candidate to current or best_so_far on every response"))
+        XCTAssertTrue(prompt.contains("Always set best_candidate_id on every response"))
+        XCTAssertTrue(prompt.contains("move_xy"))
+        XCTAssertTrue(prompt.contains("move_xy may use any finite decimal values within the range [-4, 4]"))
+        XCTAssertTrue(prompt.contains("High-precision floating-point values are allowed"))
+        XCTAssertTrue(prompt.contains("Ghost boxes show coarse reference positions"))
+        XCTAssertTrue(prompt.contains("Do not return a freeform target_box unless falling back for legacy compatibility"))
+        XCTAssertTrue(prompt.contains("For move, best_candidate_id must still name the best already-visible candidate from this round"))
+        XCTAssertTrue(prompt.contains("If Image 3 disagrees with older candidate memory, trust Image 3"))
         XCTAssertTrue(prompt.contains("You, not the framework, decide which candidate is currently best"))
         XCTAssertTrue(prompt.contains("Example accept"))
-        XCTAssertTrue(prompt.contains("Example adjust"))
-        XCTAssertTrue(prompt.contains("Do not repeat explanations or output extra prose"))
+        XCTAssertTrue(prompt.contains("Example move"))
+        XCTAssertTrue(prompt.contains("Example relocalize"))
+        XCTAssertTrue(prompt.contains("Do not output extra prose"))
     }
 
-    func testResolveModelPreferredCandidateHonorsBestSoFarSelection() {
-        let current = PresentationCandidate(
-            box: AIAnalysisResponse.BoundingBox(x: 0.0022, y: 0.0203, width: 0.0109, height: 0.0237),
-            confidence: 0.91,
-            source: "accept_pass_3"
+    @MainActor
+    func testRelocalizationPromptAndUserPromptDescribeFreshGlobalSearch() {
+        let systemPrompt = AIAnalysisPipeline.buildRelocalizationPrompt(
+            imageWidth: 1920,
+            imageHeight: 1243
         )
-        let best = PresentationCandidate(
-            box: AIAnalysisResponse.BoundingBox(x: 0.005, y: 0.048, width: 0.010, height: 0.015),
-            confidence: 0.62,
-            source: "initial_detection"
+        XCTAssertTrue(systemPrompt.contains("fresh global UI search"))
+        XCTAssertTrue(systemPrompt.contains("Search the full screenshot again from scratch"))
+        XCTAssertTrue(systemPrompt.contains("Use normalized coordinates in the 0..1 range"))
+
+        let active = EpisodeCandidate(
+            id: "c2",
+            box: .init(x: 0.77, y: 0.06, width: 0.02, height: 0.03),
+            passIndex: 2,
+            qualityScore: 78,
+            candidateDescription: "browser extension icon",
+            evaluationNote: "Wrong toolbar control.",
+            origin: "refinement_pass_2"
+        )
+        let best = EpisodeCandidate(
+            id: "c1",
+            box: .init(x: 0.74, y: 0.06, width: 0.02, height: 0.03),
+            passIndex: 1,
+            qualityScore: 82,
+            candidateDescription: "ambiguous toolbar icon",
+            evaluationNote: "Still not the requested target.",
+            origin: "refinement_pass_1"
+        )
+        let prompt = AIAnalysisPipeline.buildRelocalizationUserPrompt(
+            query: "find where to open a new chrome tab",
+            highlight: .init(
+                id: "h1",
+                label: "New tab (+) button",
+                boundingBox: .init(x: 0.77, y: 0.06, width: 0.02, height: 0.03),
+                elementType: "button"
+            ),
+            activeCandidate: active,
+            bestCandidate: best,
+            visibleCandidates: [best, active]
         )
 
-        let selected = AIAnalysisPipeline.resolveModelPreferredCandidate(
-            preferredCandidate: .bestSoFar,
-            current: current,
-            bestSoFar: best
-        )
-
-        XCTAssertEqual(selected, best)
+        XCTAssertTrue(prompt.contains("Perform a fresh global search across the whole screenshot"))
+        XCTAssertTrue(prompt.contains("Current active candidate: c2"))
+        XCTAssertTrue(prompt.contains("Current best candidate: c1"))
+        XCTAssertTrue(prompt.contains("description=\"browser extension icon\""))
+        XCTAssertTrue(prompt.contains("Use the candidate descriptions and assessments as negative evidence"))
     }
 
-    func testResolveModelPreferredCandidateDefaultsToCurrentWithoutModelSelection() {
-        let current = PresentationCandidate(
+    func testResolveBestCandidateIDAcceptsExistingCandidateID() {
+        let memory = EpisodeMemory(
+            seedBox: AIAnalysisResponse.BoundingBox(x: 0.005, y: 0.048, width: 0.010, height: 0.015),
+            initialScore: 62,
+            initialNote: "Initial",
+            initialDescription: "Initial candidate",
+            origin: "initial_detection"
+        )
+
+        let selected = AIAnalysisPipeline.resolveBestCandidateID(
+            explicitCandidateID: "c0",
+            legacyPreferredCandidate: nil,
+            proposalCandidateID: nil,
+            episodeMemory: memory,
+            defaultCandidateID: memory.activeCandidateID
+        )
+
+        XCTAssertEqual(selected, "c0")
+    }
+
+    func testResolveBestCandidateIDUsesProposalToken() {
+        var memory = EpisodeMemory(
+            seedBox: AIAnalysisResponse.BoundingBox(x: 0.005, y: 0.048, width: 0.010, height: 0.015),
+            initialScore: 62,
+            initialNote: "Initial",
+            initialDescription: "Initial candidate",
+            origin: "initial_detection"
+        )
+        let proposal = memory.appendCandidate(
             box: AIAnalysisResponse.BoundingBox(x: 0.0022, y: 0.0203, width: 0.0109, height: 0.0237),
-            confidence: 0.93,
-            source: "pass_2"
-        )
-        let best = PresentationCandidate(
-            box: AIAnalysisResponse.BoundingBox(x: 0.0208, y: 0.0439, width: 0.0131, height: 0.0220),
-            confidence: 0.94,
-            source: "pass_1"
+            passIndex: 1,
+            qualityScore: 91,
+            evaluationNote: "Proposal",
+            candidateDescription: "Improved candidate",
+            origin: "refinement_pass_1"
         )
 
-        let selected = AIAnalysisPipeline.resolveModelPreferredCandidate(
-            preferredCandidate: nil,
-            current: current,
-            bestSoFar: best
+        let selected = AIAnalysisPipeline.resolveBestCandidateID(
+            explicitCandidateID: "proposal",
+            legacyPreferredCandidate: nil,
+            proposalCandidateID: proposal.id,
+            episodeMemory: memory,
+            defaultCandidateID: memory.activeCandidateID,
+            allowProposalToken: true
         )
 
-        XCTAssertEqual(selected, current)
+        XCTAssertEqual(selected, proposal.id)
+    }
+
+    func testResolveBestCandidateIDIgnoresProposalTokenWhenProposalIsUnverified() {
+        var memory = EpisodeMemory(
+            seedBox: AIAnalysisResponse.BoundingBox(x: 0.005, y: 0.048, width: 0.010, height: 0.015),
+            initialScore: 62,
+            initialNote: "Initial",
+            initialDescription: "Initial candidate",
+            origin: "initial_detection"
+        )
+        let proposal = memory.appendCandidate(
+            box: AIAnalysisResponse.BoundingBox(x: 0.0022, y: 0.0203, width: 0.0109, height: 0.0237),
+            passIndex: 1,
+            qualityScore: 91,
+            evaluationNote: "Proposal",
+            candidateDescription: "Improved candidate",
+            origin: "refinement_pass_1"
+        )
+
+        let selected = AIAnalysisPipeline.resolveBestCandidateID(
+            explicitCandidateID: "proposal",
+            legacyPreferredCandidate: nil,
+            proposalCandidateID: proposal.id,
+            episodeMemory: memory,
+            defaultCandidateID: "c0",
+            allowProposalToken: false
+        )
+
+        XCTAssertEqual(selected, "c0")
+    }
+
+    func testEpisodeMemoryVisibleCandidatesIncludesActiveBestAndRecentHistory() {
+        var memory = EpisodeMemory(
+            seedBox: AIAnalysisResponse.BoundingBox(x: 0.01, y: 0.01, width: 0.02, height: 0.02),
+            initialScore: 60,
+            initialNote: "Initial",
+            initialDescription: "Initial candidate",
+            origin: "initial_detection"
+        )
+        let c1 = memory.appendCandidate(
+            box: AIAnalysisResponse.BoundingBox(x: 0.02, y: 0.02, width: 0.02, height: 0.02),
+            passIndex: 1,
+            qualityScore: 70,
+            evaluationNote: "Refine 1",
+            candidateDescription: "First refinement candidate",
+            origin: "refinement_pass_1"
+        )
+        let c2 = memory.appendCandidate(
+            box: AIAnalysisResponse.BoundingBox(x: 0.03, y: 0.03, width: 0.02, height: 0.02),
+            passIndex: 2,
+            qualityScore: 80,
+            evaluationNote: "Refine 2",
+            candidateDescription: "Second refinement candidate",
+            origin: "refinement_pass_2"
+        )
+        let c3 = memory.appendCandidate(
+            box: AIAnalysisResponse.BoundingBox(x: 0.04, y: 0.04, width: 0.02, height: 0.02),
+            passIndex: 3,
+            qualityScore: 90,
+            evaluationNote: "Refine 3",
+            candidateDescription: "Third refinement candidate",
+            origin: "refinement_pass_3"
+        )
+        memory.activeCandidateID = c3.id
+        memory.bestCandidateID = c1.id
+
+        let visible = memory.visibleCandidates(maxAdditionalHistoryCandidates: 3).map(\.id)
+
+        XCTAssertEqual(visible.first, c3.id)
+        XCTAssertTrue(visible.contains(c1.id))
+        XCTAssertTrue(visible.contains(c2.id))
+        XCTAssertTrue(visible.contains("c0"))
     }
 
     func testMapCropBoxToImageMapsLocalCoordinatesBackToGlobal() {

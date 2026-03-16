@@ -36,7 +36,7 @@ final class OverlayDrawingView: NSView {
     }
 
     private func draw(region: HighlightRegion) {
-        let rect = region.screenRect.integral
+        let rect = region.screenRect
         let color = strokeColor(for: region.color)
 
         let fillPath = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)

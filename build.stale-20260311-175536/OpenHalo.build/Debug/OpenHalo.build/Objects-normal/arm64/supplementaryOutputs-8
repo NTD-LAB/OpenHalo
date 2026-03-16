@@ -1,0 +1,23 @@
+{
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Utilities/ScreenGeometry.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ScreenGeometry.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ScreenGeometry.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ScreenGeometry.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ScreenGeometry.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ScreenGeometry.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Views/SettingsView.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/SettingsView.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/SettingsView.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/SettingsView.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/SettingsView.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/SettingsView.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps"
+  }
+}

@@ -266,41 +266,35 @@ actor OpenRouterClient {
             properties: [
                 "status": .string(
                     description: "Whether to keep the current box or modify it.",
-                    enumValues: ["accept", "adjust"]
+                    enumValues: ["accept", "move", "relocalize"]
                 ),
-                "preferred_candidate": .string(
-                    description: "On every refinement response, which candidate is currently the better final presentation box: the current candidate or the best-so-far candidate.",
-                    enumValues: ["current", "best_so_far"]
+                "active_candidate_description": .string(
+                    description: "A very short phrase describing what is inside the currently active candidate box."
                 ),
-                "coordinate_space": .string(
-                    description: "Coordinate system used by target_box when provided.",
-                    enumValues: ["crop", "screen"]
+                "active_candidate_assessment": .string(
+                    description: "A very short sentence saying why the active candidate is or is not the requested target."
                 ),
-                "target_box": .object(
+                "best_candidate_id": .string(
+                    description: "Which already-visible candidate is currently the best final presentation box. Use one of the provided candidate IDs only; do not name a new unseen proposal as best."
+                ),
+                "best_candidate_score": .integer(
+                    description: "Integer quality score from 0 to 100 for the selected best candidate."
+                ),
+                "best_candidate_note": .string(
+                    description: "Short explanation for why the selected best candidate is the most useful final box for a human click."
+                ),
+                "move_xy": .object(
+                    description: "Relative center movement in current-box units when status is move.",
                     properties: [
-                        "x": .number(description: "Normalized left edge in the chosen coordinate space."),
-                        "y": .number(description: "Normalized top edge in the chosen coordinate space."),
-                        "width": .number(description: "Normalized width in the chosen coordinate space."),
-                        "height": .number(description: "Normalized height in the chosen coordinate space.")
+                        "x": .number(description: "Horizontal move in current-box widths. 0 keeps the current center, positive moves right."),
+                        "y": .number(description: "Vertical move in current-box heights. 0 keeps the current center, positive moves down.")
                     ],
-                    required: ["x", "y", "width", "height"]
-                ),
-                "dx": .number(description: "Relative horizontal compensation."),
-                "dy": .number(description: "Relative vertical compensation."),
-                "dw": .number(description: "Relative width compensation."),
-                "dh": .number(description: "Relative height compensation."),
-                "action": .string(
-                    description: "Fallback discrete action if a freeform target_box is unavailable.",
-                    enumValues: ["left", "right", "up", "down", "wider", "narrower", "taller", "shorter", "grow", "shrink"]
-                ),
-                "step": .string(
-                    description: "Fallback discrete step size.",
-                    enumValues: ["small", "medium", "large"]
+                    required: ["x", "y"]
                 ),
                 "reason": .string(description: "Short explanation of the refinement decision."),
                 "confidence": .number(description: "Confidence score between 0 and 1.")
             ],
-            required: ["status", "reason", "confidence"]
+            required: ["status", "active_candidate_description", "active_candidate_assessment", "best_candidate_id", "best_candidate_score", "best_candidate_note", "reason", "confidence"]
         )
     )
 }

@@ -538,9 +538,16 @@ struct AIAnalysisResponse: Decodable {
 
 struct AIHighlightRefinementResponse: Decodable {
     let status: Status
-    let coordinateSpace: CoordinateSpace?
-    let targetBox: AIAnalysisResponse.BoundingBox?
-    let preferredCandidate: PreferredCandidate?
+    let activeCandidateDescription: String?
+    let activeCandidateAssessment: String?
+    let bestCandidateID: String?
+    let bestCandidateScore: Int?
+    let bestCandidateNote: String?
+    let moveXY: MoveXY?
+    let proposal: Proposal?
+    let legacyCoordinateSpace: CoordinateSpace?
+    let legacyTargetBox: AIAnalysisResponse.BoundingBox?
+    let legacyPreferredCandidate: PreferredCandidate?
     let dx: Double?
     let dy: Double?
     let dw: Double?
@@ -552,14 +559,81 @@ struct AIHighlightRefinementResponse: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case status
-        case coordinateSpace = "coordinate_space"
-        case targetBox = "target_box"
-        case preferredCandidate = "preferred_candidate"
+        case activeCandidateDescription = "active_candidate_description"
+        case activeCandidateAssessment = "active_candidate_assessment"
+        case bestCandidateID = "best_candidate_id"
+        case bestCandidateScore = "best_candidate_score"
+        case bestCandidateNote = "best_candidate_note"
+        case moveXY = "move_xy"
+        case proposal
+        case legacyCoordinateSpace = "coordinate_space"
+        case legacyTargetBox = "target_box"
+        case legacyPreferredCandidate = "preferred_candidate"
         case dx, dy, dw, dh
         case action
         case stepSize = "step"
         case reason
         case confidence
+    }
+
+    struct Proposal: Decodable {
+        let coordinateSpace: CoordinateSpace?
+        let targetBox: AIAnalysisResponse.BoundingBox?
+        let score: Int?
+        let note: String?
+        let description: String?
+
+        enum CodingKeys: String, CodingKey {
+            case coordinateSpace = "coordinate_space"
+            case targetBox = "target_box"
+            case score = "proposal_score"
+            case note = "proposal_note"
+            case description = "proposal_description"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.coordinateSpace = try container.decodeIfPresent(CoordinateSpace.self, forKey: .coordinateSpace)
+            self.targetBox = try? container.decodeIfPresent(AIAnalysisResponse.BoundingBox.self, forKey: .targetBox)
+            self.score = try? FlexibleDecoding.decodeInt(from: container, forKey: .score)
+            self.note = try? FlexibleDecoding.decodeString(from: container, forKey: .note)
+            self.description = try? FlexibleDecoding.decodeString(from: container, forKey: .description)
+        }
+
+        init(
+            coordinateSpace: CoordinateSpace?,
+            targetBox: AIAnalysisResponse.BoundingBox?,
+            score: Int?,
+            note: String?,
+            description: String?
+        ) {
+            self.coordinateSpace = coordinateSpace
+            self.targetBox = targetBox
+            self.score = score
+            self.note = note
+            self.description = description
+        }
+    }
+
+    struct MoveXY: Decodable, Equatable {
+        let x: Double
+        let y: Double
+
+        enum CodingKeys: String, CodingKey {
+            case x
+            case y
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.x = try FlexibleDecoding.decodeDouble(from: container, forKey: .x)
+            self.y = try FlexibleDecoding.decodeDouble(from: container, forKey: .y)
+        }
+
+        init(x: Double, y: Double) {
+            self.x = x
+            self.y = y
+        }
     }
 
     enum CoordinateSpace: String, Decodable {
@@ -583,14 +657,15 @@ struct AIHighlightRefinementResponse: Decodable {
 
     enum Status: String, Decodable {
         case accept
-        case adjust
+        case move
+        case relocalize
 
         init(from decoder: Decoder) throws {
             let container = try decoder.singleValueContainer()
             let rawValue = try container.decode(String.self).lowercased()
 
-            if rawValue == "act" {
-                self = .adjust
+            if rawValue == "act" || rawValue == "adjust" {
+                self = .move
                 return
             }
 
@@ -628,6 +703,88 @@ struct AIHighlightRefinementResponse: Decodable {
                 )
             }
         }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.status = try container.decode(Status.self, forKey: .status)
+        self.activeCandidateDescription = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .activeCandidateDescription
+        )
+        self.activeCandidateAssessment = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .activeCandidateAssessment
+        )
+        self.bestCandidateID = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .bestCandidateID
+        )
+        self.bestCandidateScore = try? FlexibleDecoding.decodeInt(
+            from: container,
+            forKey: .bestCandidateScore
+        )
+        self.bestCandidateNote = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .bestCandidateNote
+        )
+        self.moveXY = try? container.decodeIfPresent(MoveXY.self, forKey: .moveXY)
+        self.legacyCoordinateSpace = try container.decodeIfPresent(CoordinateSpace.self, forKey: .legacyCoordinateSpace)
+        self.legacyTargetBox = try container.decodeIfPresent(AIAnalysisResponse.BoundingBox.self, forKey: .legacyTargetBox)
+        self.legacyPreferredCandidate = try container.decodeIfPresent(
+            PreferredCandidate.self,
+            forKey: .legacyPreferredCandidate
+        )
+        self.dx = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dx)
+        self.dy = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dy)
+        self.dw = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dw)
+        self.dh = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dh)
+        self.action = try container.decodeIfPresent(Action.self, forKey: .action)
+        self.stepSize = try container.decodeIfPresent(StepSize.self, forKey: .stepSize)
+        self.reason = try? FlexibleDecoding.decodeString(from: container, forKey: .reason)
+        self.confidence = try? FlexibleDecoding.decodeDouble(from: container, forKey: .confidence)
+
+        if let proposal = try container.decodeIfPresent(Proposal.self, forKey: .proposal) {
+            self.proposal = proposal
+        } else if self.legacyCoordinateSpace != nil || self.legacyTargetBox != nil {
+            self.proposal = Proposal(
+                coordinateSpace: self.legacyCoordinateSpace,
+                targetBox: self.legacyTargetBox,
+                score: nil,
+                note: nil,
+                description: nil
+            )
+        } else {
+            self.proposal = nil
+        }
+    }
+
+    var coordinateSpace: CoordinateSpace? {
+        proposal?.coordinateSpace ?? legacyCoordinateSpace
+    }
+
+    var targetBox: AIAnalysisResponse.BoundingBox? {
+        proposal?.targetBox ?? legacyTargetBox
+    }
+
+    var preferredCandidate: PreferredCandidate? {
+        legacyPreferredCandidate
+    }
+
+    var proposalScore: Int? {
+        proposal?.score
+    }
+
+    var proposalNote: String? {
+        proposal?.note
+    }
+
+    var proposalDescription: String? {
+        proposal?.description
+    }
+
+    var hasMoveXY: Bool {
+        moveXY != nil
     }
 
     enum Action: String, Decodable {
@@ -683,21 +840,5 @@ struct AIHighlightRefinementResponse: Decodable {
 
     var hasTargetBox: Bool {
         targetBox != nil
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.status = try container.decode(Status.self, forKey: .status)
-        self.coordinateSpace = try? container.decodeIfPresent(CoordinateSpace.self, forKey: .coordinateSpace)
-        self.targetBox = try? container.decodeIfPresent(AIAnalysisResponse.BoundingBox.self, forKey: .targetBox)
-        self.preferredCandidate = try? container.decodeIfPresent(PreferredCandidate.self, forKey: .preferredCandidate)
-        self.dx = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dx)
-        self.dy = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dy)
-        self.dw = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dw)
-        self.dh = try? FlexibleDecoding.decodeDouble(from: container, forKey: .dh)
-        self.action = try? container.decodeIfPresent(Action.self, forKey: .action)
-        self.stepSize = try? container.decodeIfPresent(StepSize.self, forKey: .stepSize)
-        self.reason = try? FlexibleDecoding.decodeString(from: container, forKey: .reason)
-        self.confidence = try? FlexibleDecoding.decodeDouble(from: container, forKey: .confidence)
     }
 }

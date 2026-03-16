@@ -1,48 +1,59 @@
 import AppKit
 import CoreGraphics
 
+struct RenderedEpisodeCandidate: Equatable {
+    enum Role {
+        case active
+        case best
+        case history
+    }
+
+    let candidateID: String
+    let box: AIAnalysisResponse.BoundingBox
+    let qualityScore: Int
+    let role: Role
+}
+
 struct RefinementRenderings {
     let fullAnnotatedImage: CGImage
     let cropAnnotatedImage: CGImage
+    let activeContentImage: CGImage
+    let activeContentBoxInImage: AIAnalysisResponse.BoundingBox
     let cropBoxInImage: AIAnalysisResponse.BoundingBox
-    let currentBoxInCrop: AIAnalysisResponse.BoundingBox
-    let bestBoxInCrop: AIAnalysisResponse.BoundingBox?
-    let historyBoxesInCrop: [AIAnalysisResponse.BoundingBox]
+    let candidatesInCrop: [RenderedEpisodeCandidate]
     let cropImageSize: CGSize
 }
 
 enum AnnotatedScreenshotRenderer {
-    static func renderFullImage(
-        image: CGImage,
-        currentBox: AIAnalysisResponse.BoundingBox,
-        historyBoxes: [AIAnalysisResponse.BoundingBox],
-        bestPresentationBox: AIAnalysisResponse.BoundingBox?
-    ) throws -> CGImage {
-        try renderAnnotatedImage(
-            image: image,
-            currentBox: currentBox,
-            historyBoxes: historyBoxes,
-            bestPresentationBox: bestPresentationBox
-        )
+    private enum RenderingStyle {
+        case fullContext
+        case detailCrop
     }
 
     static func renderRefinementImages(
         image: CGImage,
-        currentBox: AIAnalysisResponse.BoundingBox,
-        historyBoxes: [AIAnalysisResponse.BoundingBox],
-        bestPresentationBox: AIAnalysisResponse.BoundingBox?,
+        displayedCandidates: [RenderedEpisodeCandidate],
+        activeCandidateID: String,
         minimumCropPixelSize: CGSize,
-        cropExpansionFactor: Double
+        cropExpansionFactor: Double,
+        minimumActiveContentRenderSize: CGSize,
+        actionCanvasGhostOffsetRange: ClosedRange<Int>
     ) throws -> RefinementRenderings {
+        let activeCandidate = try requiredActiveCandidate(
+            from: displayedCandidates,
+            activeCandidateID: activeCandidateID
+        )
+
         let fullAnnotatedImage = try renderAnnotatedImage(
             image: image,
-            currentBox: currentBox,
-            historyBoxes: historyBoxes,
-            bestPresentationBox: bestPresentationBox
+            displayedCandidates: displayedCandidates,
+            activeCandidateID: activeCandidateID,
+            style: .fullContext,
+            actionCanvasGhostOffsetRange: actionCanvasGhostOffsetRange
         )
 
         let cropBoxInImage = normalizedCropBox(
-            around: currentBox,
+            around: activeCandidate.box,
             imageSize: CGSize(width: image.width, height: image.height),
             minimumCropPixelSize: minimumCropPixelSize,
             expansionFactor: cropExpansionFactor
@@ -52,71 +63,55 @@ enum AnnotatedScreenshotRenderer {
             imageWidth: image.width,
             imageHeight: image.height
         )
+        let croppedImage = try cropImage(image: image, pixelRect: cropPixelRect)
 
-        guard let cropContext = CGContext(
-            data: nil,
-            width: Int(cropPixelRect.width),
-            height: Int(cropPixelRect.height),
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
-            throw AnnotationRenderingError.contextCreationFailed
-        }
-
-        cropContext.interpolationQuality = .high
-        cropContext.draw(
-            image,
-            in: CGRect(
-                x: CGFloat(-cropPixelRect.minX),
-                y: CGFloat(-cropPixelRect.minY),
-                width: CGFloat(image.width),
-                height: CGFloat(image.height)
+        let candidatesInCrop = displayedCandidates.compactMap { candidate -> RenderedEpisodeCandidate? in
+            guard intersects(candidate.box, cropBoxInImage) else { return nil }
+            return RenderedEpisodeCandidate(
+                candidateID: candidate.candidateID,
+                box: box(candidate.box, normalizedWithin: cropBoxInImage),
+                qualityScore: candidate.qualityScore,
+                role: candidate.role
             )
-        )
-
-        guard let croppedImage = cropContext.makeImage() else {
-            throw AnnotationRenderingError.imageCreationFailed
         }
 
-        let currentBoxInCrop = box(
-            currentBox,
-            normalizedWithin: cropBoxInImage
-        )
-        let bestBoxInCrop: AIAnalysisResponse.BoundingBox?
-        if let bestPresentationBox, intersects(bestPresentationBox, cropBoxInImage) {
-            bestBoxInCrop = box(bestPresentationBox, normalizedWithin: cropBoxInImage)
-        } else {
-            bestBoxInCrop = nil
-        }
-        let historyBoxesInCrop: [AIAnalysisResponse.BoundingBox] = historyBoxes.compactMap { historyBox in
-            guard intersects(historyBox, cropBoxInImage) else { return nil }
-            return box(historyBox, normalizedWithin: cropBoxInImage)
-        }
         let cropAnnotatedImage = try renderAnnotatedImage(
             image: croppedImage,
-            currentBox: currentBoxInCrop,
-            historyBoxes: historyBoxesInCrop,
-            bestPresentationBox: bestBoxInCrop
+            displayedCandidates: candidatesInCrop,
+            activeCandidateID: activeCandidateID,
+            style: .detailCrop,
+            actionCanvasGhostOffsetRange: actionCanvasGhostOffsetRange
+        )
+
+        let activeContentBoxInImage = activeCandidate.box.clampedToUnitSpace(minimumExtent: 0.0)
+        let activeContentPixelRect = pixelRect(
+            for: activeContentBoxInImage,
+            imageWidth: image.width,
+            imageHeight: image.height
+        )
+        let activeContentImage = try cropImage(
+            image: image,
+            pixelRect: activeContentPixelRect,
+            minimumOutputSize: minimumActiveContentRenderSize
         )
 
         return RefinementRenderings(
             fullAnnotatedImage: fullAnnotatedImage,
             cropAnnotatedImage: cropAnnotatedImage,
+            activeContentImage: activeContentImage,
+            activeContentBoxInImage: activeContentBoxInImage,
             cropBoxInImage: cropBoxInImage,
-            currentBoxInCrop: currentBoxInCrop,
-            bestBoxInCrop: bestBoxInCrop,
-            historyBoxesInCrop: historyBoxesInCrop,
+            candidatesInCrop: candidatesInCrop,
             cropImageSize: CGSize(width: croppedImage.width, height: croppedImage.height)
         )
     }
 
     private static func renderAnnotatedImage(
         image: CGImage,
-        currentBox: AIAnalysisResponse.BoundingBox,
-        historyBoxes: [AIAnalysisResponse.BoundingBox],
-        bestPresentationBox: AIAnalysisResponse.BoundingBox?
+        displayedCandidates: [RenderedEpisodeCandidate],
+        activeCandidateID: String,
+        style: RenderingStyle,
+        actionCanvasGhostOffsetRange: ClosedRange<Int>
     ) throws -> CGImage {
         let width = image.width
         let height = image.height
@@ -136,64 +131,328 @@ enum AnnotatedScreenshotRenderer {
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        let normalizedHistory = historyBoxes.map { $0.clampedToUnitSpace() }
-        let rect = pixelRect(
-            for: currentBox.clampedToUnitSpace(),
+        let activeCandidate = try requiredActiveCandidate(
+            from: displayedCandidates,
+            activeCandidateID: activeCandidateID
+        )
+        let activeRect = pixelRect(
+            for: activeCandidate.box.clampedToUnitSpace(),
             imageWidth: width,
             imageHeight: height
         )
 
-        let focusPath = CGMutablePath()
-        focusPath.addRect(CGRect(x: 0, y: 0, width: width, height: height))
-        focusPath.addRect(rect.insetBy(dx: -1, dy: -1))
-        context.addPath(focusPath)
-        context.setFillColor(NSColor.black.withAlphaComponent(0.26).cgColor)
-        context.drawPath(using: .eoFill)
+        if style == .fullContext {
+            let focusPath = CGMutablePath()
+            focusPath.addRect(CGRect(x: 0, y: 0, width: width, height: height))
+            focusPath.addRect(activeRect.insetBy(dx: -1, dy: -1))
+            context.addPath(focusPath)
+            context.setFillColor(NSColor.black.withAlphaComponent(0.14).cgColor)
+            context.drawPath(using: .eoFill)
+        }
 
-        drawHistory(
+        drawActionCanvas(
             on: context,
-            boxes: normalizedHistory,
+            activeCandidate: activeCandidate,
             imageWidth: width,
-            imageHeight: height
+            imageHeight: height,
+            style: style,
+            ghostOffsetRange: actionCanvasGhostOffsetRange
         )
 
-        if let bestPresentationBox {
-            drawBestPresentationBox(
+        for candidate in displayedCandidates where candidate.role == .history {
+            drawHistoryCandidate(
                 on: context,
-                box: bestPresentationBox,
-                currentBox: currentBox,
+                candidate: candidate,
                 imageWidth: width,
-                imageHeight: height
+                imageHeight: height,
+                style: style
             )
         }
 
-        let outerStrokeColor = NSColor.white
-        let innerStrokeColor = NSColor.systemPink
+        for candidate in displayedCandidates where candidate.role == .best {
+            drawBestCandidate(
+                on: context,
+                candidate: candidate,
+                activeCandidate: activeCandidate,
+                imageWidth: width,
+                imageHeight: height,
+                style: style
+            )
+        }
 
-        context.setStrokeColor(outerStrokeColor.cgColor)
-        context.setLineWidth(10)
-        context.stroke(rect)
-
-        context.setStrokeColor(innerStrokeColor.cgColor)
-        context.setLineWidth(6)
-        context.stroke(rect)
-
-        drawCornerHandles(on: context, rect: rect, color: innerStrokeColor)
-
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        context.setStrokeColor(NSColor.systemRed.withAlphaComponent(0.95).cgColor)
-        context.setLineWidth(3)
-        context.move(to: CGPoint(x: center.x - 14, y: center.y))
-        context.addLine(to: CGPoint(x: center.x + 14, y: center.y))
-        context.move(to: CGPoint(x: center.x, y: center.y - 14))
-        context.addLine(to: CGPoint(x: center.x, y: center.y + 14))
-        context.strokePath()
+        drawActiveCandidate(
+            on: context,
+            candidate: activeCandidate,
+            imageWidth: width,
+            imageHeight: height,
+            style: style
+        )
 
         guard let annotatedImage = context.makeImage() else {
             throw AnnotationRenderingError.imageCreationFailed
         }
 
         return annotatedImage
+    }
+
+    private static func drawActionCanvas(
+        on context: CGContext,
+        activeCandidate: RenderedEpisodeCandidate,
+        imageWidth: Int,
+        imageHeight: Int,
+        style: RenderingStyle,
+        ghostOffsetRange: ClosedRange<Int>
+    ) {
+        let activeRect = pixelRect(
+            for: activeCandidate.box.clampedToUnitSpace(),
+            imageWidth: imageWidth,
+            imageHeight: imageHeight
+        )
+        let origin = CGPoint(x: activeRect.midX, y: activeRect.midY)
+        let unitWidth = max(activeRect.width, 8)
+        let unitHeight = max(activeRect.height, 8)
+        let maxHalfStepOffset = Double(ghostOffsetRange.upperBound) + 0.5
+
+        drawActionAxes(
+            on: context,
+            origin: origin,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+            style: style
+        )
+
+        if style == .detailCrop {
+            drawHalfStepGrid(
+                on: context,
+                origin: origin,
+                unitWidth: unitWidth,
+                unitHeight: unitHeight,
+                imageWidth: imageWidth,
+                imageHeight: imageHeight,
+                maxOffset: maxHalfStepOffset
+            )
+        }
+
+        drawGhostBoxes(
+            on: context,
+            origin: origin,
+            activeRect: activeRect,
+            unitWidth: unitWidth,
+            unitHeight: unitHeight,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+            style: style,
+            ghostOffsetRange: ghostOffsetRange
+        )
+
+        drawAxisTicksAndLabels(
+            on: context,
+            origin: origin,
+            unitWidth: unitWidth,
+            unitHeight: unitHeight,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+            style: style,
+            ghostOffsetRange: ghostOffsetRange
+        )
+    }
+
+    private static func drawActionAxes(
+        on context: CGContext,
+        origin: CGPoint,
+        imageWidth: Int,
+        imageHeight: Int,
+        style: RenderingStyle
+    ) {
+        context.saveGState()
+        context.setStrokeColor(
+            NSColor.systemTeal.withAlphaComponent(style == .detailCrop ? 0.30 : 0.22).cgColor
+        )
+        context.setLineWidth(style == .detailCrop ? 2 : 1.5)
+
+        context.move(to: CGPoint(x: 0, y: origin.y))
+        context.addLine(to: CGPoint(x: CGFloat(imageWidth), y: origin.y))
+        context.move(to: CGPoint(x: origin.x, y: 0))
+        context.addLine(to: CGPoint(x: origin.x, y: CGFloat(imageHeight)))
+        context.strokePath()
+        context.restoreGState()
+    }
+
+    private static func drawHalfStepGrid(
+        on context: CGContext,
+        origin: CGPoint,
+        unitWidth: CGFloat,
+        unitHeight: CGFloat,
+        imageWidth: Int,
+        imageHeight: Int,
+        maxOffset: Double
+    ) {
+        context.saveGState()
+        context.setStrokeColor(NSColor.white.withAlphaComponent(0.08).cgColor)
+        context.setLineWidth(1)
+        context.setLineDash(phase: 0, lengths: [4, 6])
+
+        var offset = -maxOffset
+        while offset <= maxOffset + 0.000_1 {
+            let isInteger = abs(offset.rounded() - offset) < 0.000_1
+            let isOrigin = abs(offset) < 0.000_1
+            if !isInteger && !isOrigin {
+                let x = origin.x + (CGFloat(offset) * unitWidth)
+                context.move(to: CGPoint(x: x, y: 0))
+                context.addLine(to: CGPoint(x: x, y: CGFloat(imageHeight)))
+
+                let y = origin.y - (CGFloat(offset) * unitHeight)
+                context.move(to: CGPoint(x: 0, y: y))
+                context.addLine(to: CGPoint(x: CGFloat(imageWidth), y: y))
+            }
+            offset += 0.5
+        }
+
+        context.strokePath()
+        context.restoreGState()
+    }
+
+    private static func drawGhostBoxes(
+        on context: CGContext,
+        origin: CGPoint,
+        activeRect: CGRect,
+        unitWidth: CGFloat,
+        unitHeight: CGFloat,
+        imageWidth: Int,
+        imageHeight: Int,
+        style: RenderingStyle,
+        ghostOffsetRange: ClosedRange<Int>
+    ) {
+        context.saveGState()
+        context.setStrokeColor(
+            NSColor.systemTeal.withAlphaComponent(style == .detailCrop ? 0.28 : 0.18).cgColor
+        )
+        context.setLineWidth(style == .detailCrop ? 2 : 1.5)
+        context.setLineDash(phase: 0, lengths: [8, 8])
+
+        let imageBounds = CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
+
+        for xOffset in ghostOffsetRange {
+            for yOffset in ghostOffsetRange {
+                if xOffset == 0 && yOffset == 0 {
+                    continue
+                }
+
+                let candidateRect = CGRect(
+                    x: origin.x + (CGFloat(xOffset) * unitWidth) - (activeRect.width / 2),
+                    y: origin.y - (CGFloat(yOffset) * unitHeight) - (activeRect.height / 2),
+                    width: activeRect.width,
+                    height: activeRect.height
+                ).integral
+
+                guard candidateRect.intersects(imageBounds) else { continue }
+                context.stroke(candidateRect)
+            }
+        }
+
+        context.restoreGState()
+    }
+
+    private static func drawAxisTicksAndLabels(
+        on context: CGContext,
+        origin: CGPoint,
+        unitWidth: CGFloat,
+        unitHeight: CGFloat,
+        imageWidth: Int,
+        imageHeight: Int,
+        style: RenderingStyle,
+        ghostOffsetRange: ClosedRange<Int>
+    ) {
+        context.saveGState()
+        context.setStrokeColor(
+            NSColor.systemTeal.withAlphaComponent(style == .detailCrop ? 0.42 : 0.30).cgColor
+        )
+        context.setLineWidth(1.5)
+
+        for offset in ghostOffsetRange {
+            let x = origin.x + (CGFloat(offset) * unitWidth)
+            context.move(to: CGPoint(x: x, y: origin.y - 5))
+            context.addLine(to: CGPoint(x: x, y: origin.y + 5))
+
+            let y = origin.y - (CGFloat(offset) * unitHeight)
+            context.move(to: CGPoint(x: origin.x - 5, y: y))
+            context.addLine(to: CGPoint(x: origin.x + 5, y: y))
+        }
+
+        context.strokePath()
+        context.restoreGState()
+
+        for offset in ghostOffsetRange where offset != 0 {
+            let x = origin.x + (CGFloat(offset) * unitWidth)
+            drawAxisLabel(
+                on: context,
+                text: "\(offset)",
+                point: CGPoint(x: x + 4, y: min(max(origin.y + 8, 8), CGFloat(imageHeight) - 22)),
+                imageWidth: imageWidth,
+                imageHeight: imageHeight
+            )
+
+            let y = origin.y - (CGFloat(offset) * unitHeight)
+            drawAxisLabel(
+                on: context,
+                text: "\(offset)",
+                point: CGPoint(x: min(max(origin.x + 8, 8), CGFloat(imageWidth) - 22), y: y + 4),
+                imageWidth: imageWidth,
+                imageHeight: imageHeight
+            )
+        }
+
+        drawAxisLabel(
+            on: context,
+            text: "0,0",
+            point: CGPoint(
+                x: min(max(origin.x + 8, 8), CGFloat(imageWidth) - 34),
+                y: min(max(origin.y + 8, 8), CGFloat(imageHeight) - 22)
+            ),
+            imageWidth: imageWidth,
+            imageHeight: imageHeight
+        )
+    }
+
+    private static func drawAxisLabel(
+        on context: CGContext,
+        text: String,
+        point: CGPoint,
+        imageWidth: Int,
+        imageHeight: Int
+    ) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
+            .foregroundColor: NSColor.systemTeal.withAlphaComponent(0.92)
+        ]
+        let textSize = (text as NSString).size(withAttributes: attributes)
+        let textRect = CGRect(
+            x: min(max(point.x, 4), CGFloat(imageWidth) - textSize.width - 4),
+            y: min(max(point.y, 4), CGFloat(imageHeight) - textSize.height - 4),
+            width: textSize.width,
+            height: textSize.height
+        )
+
+        NSGraphicsContext.saveGraphicsState()
+        let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.current = graphicsContext
+        (text as NSString).draw(in: textRect, withAttributes: attributes)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    private static func requiredActiveCandidate(
+        from displayedCandidates: [RenderedEpisodeCandidate],
+        activeCandidateID: String
+    ) throws -> RenderedEpisodeCandidate {
+        if let active = displayedCandidates.first(where: {
+            $0.candidateID == activeCandidateID && $0.role == .active
+        }) {
+            return active
+        }
+        if let active = displayedCandidates.first(where: { $0.candidateID == activeCandidateID }) {
+            return active
+        }
+        throw AnnotationRenderingError.activeCandidateMissing
     }
 
     private static func normalizedCropBox(
@@ -218,6 +477,50 @@ enum AnnotatedScreenshotRenderer {
             width: cropWidth,
             height: cropHeight
         ).clampedToUnitSpace(minimumExtent: 0.0)
+    }
+
+    private static func cropImage(
+        image: CGImage,
+        pixelRect: CGRect,
+        minimumOutputSize: CGSize? = nil
+    ) throws -> CGImage {
+        let outputWidth = max(
+            Int(pixelRect.width),
+            Int((minimumOutputSize?.width ?? 0).rounded(.up))
+        )
+        let outputHeight = max(
+            Int(pixelRect.height),
+            Int((minimumOutputSize?.height ?? 0).rounded(.up))
+        )
+
+        guard let cropContext = CGContext(
+            data: nil,
+            width: outputWidth,
+            height: outputHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw AnnotationRenderingError.contextCreationFailed
+        }
+
+        cropContext.interpolationQuality = .high
+        cropContext.draw(
+            image,
+            in: CGRect(
+                x: CGFloat(-pixelRect.minX) * (CGFloat(outputWidth) / max(pixelRect.width, 1)),
+                y: CGFloat(-pixelRect.minY) * (CGFloat(outputHeight) / max(pixelRect.height, 1)),
+                width: CGFloat(image.width) * (CGFloat(outputWidth) / max(pixelRect.width, 1)),
+                height: CGFloat(image.height) * (CGFloat(outputHeight) / max(pixelRect.height, 1))
+            )
+        )
+
+        guard let croppedImage = cropContext.makeImage() else {
+            throw AnnotationRenderingError.imageCreationFailed
+        }
+
+        return croppedImage
     }
 
     private static func pixelRect(
@@ -265,69 +568,51 @@ enum AnnotatedScreenshotRenderer {
             lhsMaxY > rhs.y
     }
 
-    private static func drawHistory(
+    private static func drawHistoryCandidate(
         on context: CGContext,
-        boxes: [AIAnalysisResponse.BoundingBox],
+        candidate: RenderedEpisodeCandidate,
         imageWidth: Int,
-        imageHeight: Int
+        imageHeight: Int,
+        style: RenderingStyle
     ) {
-        guard !boxes.isEmpty else { return }
+        let rect = pixelRect(
+            for: candidate.box.clampedToUnitSpace(),
+            imageWidth: imageWidth,
+            imageHeight: imageHeight
+        )
 
-        let rects = boxes.map {
-            pixelRect(
-                for: $0,
+        context.saveGState()
+        context.setLineDash(phase: 0, lengths: [14, 8])
+        context.setStrokeColor(
+            NSColor.systemYellow.withAlphaComponent(style == .detailCrop ? 0.48 : 0.72).cgColor
+        )
+        context.setLineWidth(style == .detailCrop ? 3 : 4)
+        context.stroke(rect)
+        context.restoreGState()
+
+        if style == .fullContext {
+            drawBadge(
+                on: context,
+                text: badgeText(for: candidate),
+                rect: rect,
                 imageWidth: imageWidth,
-                imageHeight: imageHeight
+                imageHeight: imageHeight,
+                fillColor: NSColor.systemYellow.withAlphaComponent(0.92),
+                textColor: NSColor.black
             )
-        }
-
-        if rects.count > 1 {
-            context.saveGState()
-            context.setLineDash(phase: 0, lengths: [10, 8])
-            context.setStrokeColor(NSColor.systemTeal.withAlphaComponent(0.85).cgColor)
-            context.setLineWidth(4)
-
-            for index in 0..<(rects.count - 1) {
-                let start = CGPoint(x: rects[index].midX, y: rects[index].midY)
-                let end = CGPoint(x: rects[index + 1].midX, y: rects[index + 1].midY)
-                context.move(to: start)
-                context.addLine(to: end)
-            }
-            context.strokePath()
-            context.restoreGState()
-        }
-
-        for (index, rect) in rects.dropLast().enumerated() {
-            let progress = Double(index + 1) / Double(max(rects.count - 1, 1))
-            let historyColor = NSColor.systemYellow.withAlphaComponent(0.28 + (0.26 * progress))
-
-            context.saveGState()
-            context.setLineDash(phase: 0, lengths: [14, 8])
-            context.setStrokeColor(historyColor.cgColor)
-            context.setLineWidth(4)
-            context.stroke(rect)
-
-            context.setFillColor(historyColor.withAlphaComponent(0.18).cgColor)
-            let centerDot = CGRect(
-                x: rect.midX - 5,
-                y: rect.midY - 5,
-                width: 10,
-                height: 10
-            )
-            context.fillEllipse(in: centerDot)
-            context.restoreGState()
         }
     }
 
-    private static func drawBestPresentationBox(
+    private static func drawBestCandidate(
         on context: CGContext,
-        box: AIAnalysisResponse.BoundingBox,
-        currentBox: AIAnalysisResponse.BoundingBox,
+        candidate: RenderedEpisodeCandidate,
+        activeCandidate: RenderedEpisodeCandidate,
         imageWidth: Int,
-        imageHeight: Int
+        imageHeight: Int,
+        style: RenderingStyle
     ) {
-        let normalizedBest = box.clampedToUnitSpace()
-        guard !normalizedBest.isClose(to: currentBox.clampedToUnitSpace(), threshold: 0.0015) else {
+        let normalizedBest = candidate.box.clampedToUnitSpace()
+        guard !normalizedBest.isClose(to: activeCandidate.box.clampedToUnitSpace(), threshold: 0.0015) else {
             return
         }
 
@@ -338,20 +623,130 @@ enum AnnotatedScreenshotRenderer {
         )
 
         context.saveGState()
-        context.setLineDash(phase: 0, lengths: [18, 10])
-        context.setStrokeColor(NSColor.systemGreen.withAlphaComponent(0.96).cgColor)
-        context.setLineWidth(6)
+        context.setLineDash(phase: 0, lengths: [16, 10])
+        context.setStrokeColor(
+            NSColor.systemGreen.withAlphaComponent(style == .detailCrop ? 0.58 : 0.96).cgColor
+        )
+        context.setLineWidth(style == .detailCrop ? 4 : 6)
+        context.stroke(rect)
+        context.restoreGState()
+
+        if style == .fullContext {
+            drawBadge(
+                on: context,
+                text: badgeText(for: candidate),
+                rect: rect,
+                imageWidth: imageWidth,
+                imageHeight: imageHeight,
+                fillColor: NSColor.systemGreen.withAlphaComponent(0.94),
+                textColor: NSColor.white
+            )
+        }
+    }
+
+    private static func drawActiveCandidate(
+        on context: CGContext,
+        candidate: RenderedEpisodeCandidate,
+        imageWidth: Int,
+        imageHeight: Int,
+        style: RenderingStyle
+    ) {
+        let rect = pixelRect(
+            for: candidate.box.clampedToUnitSpace(),
+            imageWidth: imageWidth,
+            imageHeight: imageHeight
+        )
+        let outerStrokeColor = NSColor.white.withAlphaComponent(style == .detailCrop ? 0.42 : 0.72)
+        let innerStrokeColor = NSColor.systemRed.withAlphaComponent(style == .detailCrop ? 0.56 : 0.82)
+
+        context.setStrokeColor(outerStrokeColor.cgColor)
+        context.setLineWidth(style == .detailCrop ? 5 : 8)
         context.stroke(rect)
 
-        context.setFillColor(NSColor.systemGreen.withAlphaComponent(0.18).cgColor)
-        let centerDot = CGRect(
-            x: rect.midX - 6,
-            y: rect.midY - 6,
-            width: 12,
-            height: 12
+        context.setStrokeColor(innerStrokeColor.cgColor)
+        context.setLineWidth(style == .detailCrop ? 3 : 4)
+        context.stroke(rect)
+
+        if style == .fullContext {
+            drawCornerHandles(on: context, rect: rect, color: innerStrokeColor)
+            drawBadge(
+                on: context,
+                text: badgeText(for: candidate),
+                rect: rect,
+                imageWidth: imageWidth,
+                imageHeight: imageHeight,
+                fillColor: NSColor.systemRed.withAlphaComponent(0.94),
+                textColor: NSColor.white
+            )
+        }
+    }
+
+    private static func badgeText(for candidate: RenderedEpisodeCandidate) -> String {
+        let numericID = candidate.candidateID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "c", with: "")
+        return "#\(numericID) \(candidate.qualityScore)"
+    }
+
+    private static func drawBadge(
+        on context: CGContext,
+        text: String,
+        rect: CGRect,
+        imageWidth: Int,
+        imageHeight: Int,
+        fillColor: NSColor,
+        textColor: NSColor
+    ) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 18, weight: .semibold),
+            .foregroundColor: textColor
+        ]
+        let textSize = (text as NSString).size(withAttributes: attributes)
+        let paddingX: CGFloat = 12
+        let paddingY: CGFloat = 6
+        let badgeWidth = textSize.width + (paddingX * 2)
+        let badgeHeight = textSize.height + (paddingY * 2)
+        let maxX = CGFloat(imageWidth) - badgeWidth - 6
+        let preferredAboveY = rect.maxY + 6
+        let preferredBelowY = rect.minY - badgeHeight - 6
+        let badgeX = min(max(rect.minX, 6), max(maxX, 6))
+        let badgeY: CGFloat
+        if preferredAboveY + badgeHeight <= CGFloat(imageHeight) - 6 {
+            badgeY = preferredAboveY
+        } else if preferredBelowY >= 6 {
+            badgeY = preferredBelowY
+        } else {
+            badgeY = min(max(rect.minY + 6, 6), CGFloat(imageHeight) - badgeHeight - 6)
+        }
+
+        let badgeRect = CGRect(x: badgeX, y: badgeY, width: badgeWidth, height: badgeHeight).integral
+
+        context.saveGState()
+        context.setFillColor(fillColor.cgColor)
+        context.addPath(
+            CGPath(
+                roundedRect: badgeRect,
+                cornerWidth: 8,
+                cornerHeight: 8,
+                transform: nil
+            )
         )
-        context.fillEllipse(in: centerDot)
+        context.fillPath()
         context.restoreGState()
+
+        NSGraphicsContext.saveGraphicsState()
+        let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.current = graphicsContext
+        (text as NSString).draw(
+            in: CGRect(
+                x: badgeRect.minX + paddingX,
+                y: badgeRect.minY + paddingY,
+                width: textSize.width,
+                height: textSize.height
+            ),
+            withAttributes: attributes
+        )
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     private static func drawCornerHandles(
@@ -362,7 +757,7 @@ enum AnnotatedScreenshotRenderer {
         let handleLength = max(16.0, min(36.0, min(rect.width, rect.height) * 0.4))
 
         context.setStrokeColor(color.cgColor)
-        context.setLineWidth(8)
+        context.setLineWidth(6)
 
         drawCorner(
             on: context,
@@ -407,6 +802,7 @@ enum AnnotatedScreenshotRenderer {
 enum AnnotationRenderingError: Error, LocalizedError {
     case contextCreationFailed
     case imageCreationFailed
+    case activeCandidateMissing
 
     var errorDescription: String? {
         switch self {
@@ -414,6 +810,8 @@ enum AnnotationRenderingError: Error, LocalizedError {
             return "Failed to create drawing context"
         case .imageCreationFailed:
             return "Failed to create annotated screenshot"
+        case .activeCandidateMissing:
+            return "Missing active candidate for annotated screenshot"
         }
     }
 }

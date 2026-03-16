@@ -1,0 +1,23 @@
+{
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Models/HighlightRegion.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRegion.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRegion.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRegion.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRegion.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRegion.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Services/HotkeyService.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HotkeyService.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HotkeyService.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HotkeyService.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HotkeyService.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HotkeyService.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Utilities/JSONSchemaParser.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/JSONSchemaParser.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/JSONSchemaParser.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/JSONSchemaParser.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/JSONSchemaParser.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/JSONSchemaParser.swiftdeps"
+  }
+}

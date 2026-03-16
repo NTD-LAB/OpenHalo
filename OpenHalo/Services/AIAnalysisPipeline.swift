@@ -6,11 +6,14 @@ import AppKit
 final class AIAnalysisPipeline {
     private let capture: ScreenCaptureService
     private let client: OpenRouterClient
-    private let maximumRefinementPasses = 8
+    private let maximumRefinementPasses = 30
     private let visibleRefinementDelayNanoseconds: UInt64 = 250_000_000
     private let minimumRefinementBoxPixelSize = CGSize(width: 24, height: 24)
     private let minimumCropPixelSize = CGSize(width: 420, height: 420)
+    private let minimumActiveContentRenderSize = CGSize(width: 160, height: 160)
     private let cropExpansionFactor = 10.0
+    private let actionCanvasMaximumOffset = 4.0
+    private let actionCanvasGhostOffsetRange = -3...3
     private let oscillationMergeMarginPixels = CGSize(width: 8, height: 6)
     private let maximumOscillationMergePixelSize = CGSize(width: 96, height: 72)
     private let stableClusterMergeMarginPixels = CGSize(width: 8, height: 6)
@@ -203,11 +206,6 @@ final class AIAnalysisPipeline {
                 elementType: $0.elementType
             )
         }
-        var bestPresentationCandidate = PresentationCandidate(
-            box: currentHighlights[activeHighlightIndex].boundingBox,
-            confidence: defaultInitialPresentationConfidence,
-            source: "initial_detection"
-        )
 
         let seededBox = currentHighlights[activeHighlightIndex]
             .boundingBox
@@ -230,8 +228,31 @@ final class AIAnalysisPipeline {
             )
         }
 
+        let initialScore = Self.scoreFromConfidence(defaultInitialPresentationConfidence) ?? 62
+        let initialNote = "Initial unverified detection candidate."
+        let initialDescription = Self.sanitizedCandidateDescription(
+            currentHighlights[activeHighlightIndex].label,
+            fallback: "Initial target candidate."
+        )
+        var episodeMemory = EpisodeMemory(
+            seedBox: currentHighlights[activeHighlightIndex].boundingBox,
+            initialScore: initialScore,
+            initialNote: initialNote,
+            initialDescription: initialDescription,
+            origin: "initial_detection"
+        )
+        debugSession?.writeText(
+            Self.describe(episodeMemory),
+            named: "00_episode_memory.txt"
+        )
+
         let screenSize = captureTarget.screen.frame.size
-        var refinementHistory = [currentHighlights[activeHighlightIndex].boundingBox]
+        currentHighlights[activeHighlightIndex] = AIAnalysisResponse.HighlightData(
+            id: currentHighlights[activeHighlightIndex].id,
+            label: currentHighlights[activeHighlightIndex].label,
+            boundingBox: episodeMemory.activeCandidate.box,
+            elementType: currentHighlights[activeHighlightIndex].elementType
+        )
         onIntermediateHighlights?(
             captureTarget.screen,
             buildHighlightRegions(
@@ -262,11 +283,11 @@ final class AIAnalysisPipeline {
                 named: String(format: "%02d_refinement_capture.png", pass)
             )
 
-            let activeHighlight = currentHighlights[activeHighlightIndex]
             let refinementResult = await refineHighlight(
-                activeHighlight,
-                bestPresentationBox: bestPresentationCandidate.box,
-                historyBoxes: refinementHistory,
+                highlight: currentHighlights[activeHighlightIndex],
+                activeCandidate: episodeMemory.activeCandidate,
+                bestCandidate: episodeMemory.bestCandidate,
+                visibleCandidates: episodeMemory.visibleCandidates(maxAdditionalHistoryCandidates: 3),
                 screenshot: currentScreenshot,
                 query: query,
                 settings: settings,
@@ -274,17 +295,125 @@ final class AIAnalysisPipeline {
                 debugSession: debugSession
             )
 
-            if refinementResult.accepted {
-                let selectedCandidate = Self.resolveModelPreferredCandidate(
-                    preferredCandidate: refinementResult.preferredCandidate,
-                    current: PresentationCandidate(
-                        box: activeHighlight.boundingBox,
-                        confidence: refinementResult.confidence,
-                        source: "accept_pass_\(pass)"
-                    ),
-                    bestSoFar: bestPresentationCandidate
+            episodeMemory.updateCandidateMetadata(
+                id: episodeMemory.activeCandidateID,
+                qualityScore: nil,
+                evaluationNote: Self.sanitizedEvaluationNote(
+                    refinementResult.activeCandidateAssessment ?? refinementResult.reason,
+                    fallback: episodeMemory.activeCandidate.evaluationNote
+                ),
+                candidateDescription: Self.sanitizedCandidateDescription(
+                    refinementResult.activeCandidateDescription,
+                    fallback: episodeMemory.activeCandidate.candidateDescription
                 )
-                bestPresentationCandidate = selectedCandidate
+            )
+
+            if refinementResult.relocalizeRequested {
+                let resolvedBestCandidateID = Self.resolveBestCandidateID(
+                    explicitCandidateID: refinementResult.bestCandidateID,
+                    legacyPreferredCandidate: refinementResult.legacyPreferredCandidate,
+                    proposalCandidateID: nil,
+                    episodeMemory: episodeMemory,
+                    defaultCandidateID: episodeMemory.bestCandidateID
+                )
+                episodeMemory.bestCandidateID = resolvedBestCandidateID
+                episodeMemory.updateCandidateMetadata(
+                    id: resolvedBestCandidateID,
+                    qualityScore: refinementResult.bestCandidateScore ?? Self.scoreFromConfidence(refinementResult.confidence),
+                    evaluationNote: Self.sanitizedEvaluationNote(
+                        refinementResult.bestCandidateNote ?? refinementResult.reason,
+                        fallback: episodeMemory.candidate(withID: resolvedBestCandidateID)?.evaluationNote ?? "Model requested global relocalization."
+                    ),
+                    candidateDescription: nil
+                )
+
+                if let relocalizedHighlight = await relocalizeHighlight(
+                    screenshot: currentScreenshot,
+                    screenshotSize: screenshotSize,
+                    query: query,
+                    highlight: currentHighlights[activeHighlightIndex],
+                    activeCandidate: episodeMemory.activeCandidate,
+                    bestCandidate: episodeMemory.bestCandidate,
+                    visibleCandidates: episodeMemory.visibleCandidates(maxAdditionalHistoryCandidates: 3),
+                    settings: settings,
+                    pass: pass,
+                    debugSession: debugSession
+                ) {
+                    let relocalizedCandidate = episodeMemory.appendCandidate(
+                        box: relocalizedHighlight.boundingBox.clampedToUnitSpace(),
+                        passIndex: pass,
+                        qualityScore: Self.scoreFromConfidence(refinementResult.confidence) ?? 78,
+                        evaluationNote: Self.sanitizedEvaluationNote(
+                            refinementResult.reason,
+                            fallback: "Fresh global search candidate from pass \(pass)."
+                        ),
+                        candidateDescription: Self.sanitizedCandidateDescription(
+                            relocalizedHighlight.label,
+                            fallback: currentHighlights[activeHighlightIndex].label
+                        ),
+                        origin: "relocalize_pass_\(pass)"
+                    )
+                    episodeMemory.activeCandidateID = relocalizedCandidate.id
+                    currentHighlights[activeHighlightIndex] = AIAnalysisResponse.HighlightData(
+                        id: currentHighlights[activeHighlightIndex].id,
+                        label: currentHighlights[activeHighlightIndex].label,
+                        boundingBox: relocalizedCandidate.box,
+                        elementType: currentHighlights[activeHighlightIndex].elementType
+                    )
+                    debugSession?.writeText(
+                        """
+                        status=relocalize
+                        pass=\(pass)
+                        active_candidate_id=\(episodeMemory.activeCandidateID)
+                        best_candidate_id=\(episodeMemory.bestCandidateID)
+                        relocalized_candidate_id=\(relocalizedCandidate.id)
+                        relocalized_description=\(relocalizedCandidate.candidateDescription)
+                        relocalized_note=\(relocalizedCandidate.evaluationNote)
+                        relocalized_box=\(Self.describe(relocalizedCandidate.box))
+                        best_so_far_box=\(Self.describe(episodeMemory.bestCandidate.box))
+                        best_so_far_source=\(episodeMemory.bestCandidate.origin)
+                        """,
+                        named: String(format: "%02d_refinement_decision.txt", pass)
+                    )
+                    debugSession?.writeText(
+                        Self.describe(episodeMemory),
+                        named: String(format: "%02d_episode_memory.txt", pass)
+                    )
+                    onIntermediateHighlights?(
+                        captureTarget.screen,
+                        buildHighlightRegions(
+                            from: currentHighlights,
+                            primaryHighlightId: response.nextAction?.highlightId,
+                            screenSize: screenSize,
+                            showsLabels: false
+                        )
+                    )
+                    continue
+                }
+
+                debugSession?.appendLine("Pass \(pass): relocalize requested but no usable global candidate was returned.")
+                break
+            }
+
+            if refinementResult.accepted {
+                let resolvedBestCandidateID = Self.resolveBestCandidateID(
+                    explicitCandidateID: refinementResult.bestCandidateID,
+                    legacyPreferredCandidate: refinementResult.legacyPreferredCandidate,
+                    proposalCandidateID: nil,
+                    episodeMemory: episodeMemory,
+                    defaultCandidateID: episodeMemory.activeCandidateID
+                )
+                episodeMemory.bestCandidateID = resolvedBestCandidateID
+                episodeMemory.updateCandidateMetadata(
+                    id: resolvedBestCandidateID,
+                    qualityScore: refinementResult.bestCandidateScore ?? Self.scoreFromConfidence(refinementResult.confidence),
+                    evaluationNote: Self.sanitizedEvaluationNote(
+                        refinementResult.bestCandidateNote ?? refinementResult.reason,
+                        fallback: episodeMemory.candidate(withID: resolvedBestCandidateID)?.evaluationNote ?? "Accepted candidate."
+                    ),
+                    candidateDescription: nil
+                )
+                let selectedCandidate = episodeMemory.bestCandidate
                 currentHighlights[activeHighlightIndex] = AIAnalysisResponse.HighlightData(
                     id: currentHighlights[activeHighlightIndex].id,
                     label: currentHighlights[activeHighlightIndex].label,
@@ -296,29 +425,42 @@ final class AIAnalysisPipeline {
                     """
                     status=accept
                     pass=\(pass)
-                    preferred_candidate=\(refinementResult.preferredCandidate?.rawValue ?? "fallback")
-                    current_box=\(Self.describe(activeHighlight.boundingBox))
-                    best_so_far_box=\(Self.describe(bestPresentationCandidate.box))
-                    selected_source=\(selectedCandidate.source)
+                    active_candidate_id=\(episodeMemory.activeCandidateID)
+                    best_candidate_id=\(episodeMemory.bestCandidateID)
+                    selected_candidate_id=\(selectedCandidate.id)
+                    selected_score=\(selectedCandidate.qualityScore)
+                    selected_description=\(selectedCandidate.candidateDescription)
+                    selected_note=\(selectedCandidate.evaluationNote)
                     selected_box=\(Self.describe(selectedCandidate.box))
                     """,
                     named: String(format: "%02d_refinement_decision.txt", pass)
                 )
+                debugSession?.writeText(
+                    Self.describe(episodeMemory),
+                    named: String(format: "%02d_episode_memory.txt", pass)
+                )
                 break
             }
 
-            guard refinementResult.replacementBox != nil ||
+            guard refinementResult.moveXY != nil ||
+                refinementResult.proposalBox != nil ||
                 refinementResult.adjustment != nil ||
                 (refinementResult.action != nil && refinementResult.stepSize != nil) else {
-                print("[OpenHalo] Refinement returned adjust without usable compensation on pass \(pass); stopping")
-                debugSession?.appendLine("Pass \(pass): received adjust without usable compensation.")
+                print("[OpenHalo] Refinement returned move without usable compensation on pass \(pass); stopping")
+                debugSession?.appendLine("Pass \(pass): received move without usable compensation.")
                 break
             }
 
-            let previousBox = currentHighlights[activeHighlightIndex].boundingBox
+            let previousCandidate = episodeMemory.activeCandidate
+            let previousBox = previousCandidate.box
             let updatedBox: AIAnalysisResponse.BoundingBox
-            if let replacementBox = refinementResult.replacementBox {
-                updatedBox = replacementBox.clampedToUnitSpace()
+            if let moveXY = refinementResult.moveXY {
+                updatedBox = Self.applyMove(
+                    to: previousBox,
+                    moveXY: moveXY
+                )
+            } else if let proposalBox = refinementResult.proposalBox {
+                updatedBox = proposalBox.clampedToUnitSpace()
             } else if let adjustment = refinementResult.adjustment {
                 updatedBox = Self.applyAdjustment(
                     to: previousBox,
@@ -338,49 +480,103 @@ final class AIAnalysisPipeline {
                 threshold: actionChangeThreshold
             )
 
+            let previousBestCandidateID = episodeMemory.bestCandidateID
+            let proposalCandidate = episodeMemory.appendCandidate(
+                box: updatedBox,
+                passIndex: pass,
+                qualityScore: refinementResult.proposalScore ?? Self.scoreFromConfidence(refinementResult.confidence) ?? previousCandidate.qualityScore,
+                evaluationNote: Self.sanitizedEvaluationNote(
+                    refinementResult.proposalNote ?? refinementResult.reason,
+                    fallback: "Unverified move candidate from pass \(pass); verify it on the next screenshot."
+                ),
+                candidateDescription: Self.sanitizedCandidateDescription(
+                    refinementResult.proposalDescription,
+                    fallback: "Unverified moved candidate."
+                ),
+                origin: "refinement_pass_\(pass)"
+            )
+            episodeMemory.activeCandidateID = proposalCandidate.id
+
+            let resolvedBestCandidateID = Self.resolveBestCandidateID(
+                explicitCandidateID: refinementResult.bestCandidateID,
+                legacyPreferredCandidate: refinementResult.legacyPreferredCandidate,
+                proposalCandidateID: proposalCandidate.id,
+                episodeMemory: episodeMemory,
+                defaultCandidateID: previousBestCandidateID,
+                allowProposalToken: false
+            )
+            episodeMemory.bestCandidateID = resolvedBestCandidateID
+            episodeMemory.updateCandidateMetadata(
+                id: resolvedBestCandidateID,
+                qualityScore: refinementResult.bestCandidateScore ?? Self.scoreFromConfidence(refinementResult.confidence),
+                evaluationNote: Self.sanitizedEvaluationNote(
+                    refinementResult.bestCandidateNote ?? refinementResult.reason,
+                    fallback: episodeMemory.candidate(withID: resolvedBestCandidateID)?.evaluationNote ?? "Best candidate selected by model."
+                ),
+                candidateDescription: nil
+            )
+            if previousBestCandidateID != resolvedBestCandidateID,
+               let previousBest = episodeMemory.candidate(withID: previousBestCandidateID),
+               let newBest = episodeMemory.candidate(withID: resolvedBestCandidateID) {
+                debugSession?.appendLine(
+                    "Pass \(pass): promoted best presentation candidate from \(previousBest.id) \(Self.describe(previousBest.box)) to \(newBest.id) \(Self.describe(newBest.box))."
+                )
+            }
+
+            if let moveXY = refinementResult.moveXY {
+                debugSession?.writeText(
+                    """
+                    action_origin_box=\(Self.describe(previousBox))
+                    chosen_move_xy=x=\(String(format: "%.4f", moveXY.x)) y=\(String(format: "%.4f", moveXY.y))
+                    resulting_box=\(Self.describe(updatedBox))
+                    active_candidate_id=\(episodeMemory.activeCandidateID)
+                    best_candidate_id=\(episodeMemory.bestCandidateID)
+                    """,
+                    named: String(format: "%02d_refinement_action_space.txt", pass)
+                )
+            }
+
             currentHighlights[activeHighlightIndex] = AIAnalysisResponse.HighlightData(
                 id: currentHighlights[activeHighlightIndex].id,
                 label: currentHighlights[activeHighlightIndex].label,
-                boundingBox: updatedBox,
+                boundingBox: episodeMemory.activeCandidate.box,
                 elementType: currentHighlights[activeHighlightIndex].elementType
             )
-            refinementHistory.append(updatedBox)
-
-            let currentCandidate = PresentationCandidate(
-                box: updatedBox,
-                confidence: refinementResult.confidence,
-                source: "pass_\(pass)"
-            )
-            let promotedCandidate = Self.resolveModelPreferredCandidate(
-                preferredCandidate: refinementResult.preferredCandidate,
-                current: currentCandidate,
-                bestSoFar: bestPresentationCandidate
-            )
-            if promotedCandidate.box != bestPresentationCandidate.box || promotedCandidate.source != bestPresentationCandidate.source {
-                debugSession?.appendLine(
-                    "Pass \(pass): promoted best presentation candidate from \(Self.describe(bestPresentationCandidate.box)) to \(Self.describe(promotedCandidate.box)) [source=\(promotedCandidate.source)]."
-                )
-                bestPresentationCandidate = promotedCandidate
-            }
 
             debugSession?.writeText(
                 """
-                status=adjust
+                status=\(refinementResult.moveXY != nil ? "move" : "adjust")
                 pass=\(pass)
-                preferred_candidate=\(refinementResult.preferredCandidate?.rawValue ?? "current(default)")
+                active_candidate_id=\(episodeMemory.activeCandidateID)
+                best_candidate_id=\(episodeMemory.bestCandidateID)
+                selected_best_score=\(episodeMemory.bestCandidate.qualityScore)
+                selected_best_description=\(episodeMemory.bestCandidate.candidateDescription)
+                selected_best_note=\(episodeMemory.bestCandidate.evaluationNote)
+                active_candidate_description=\(episodeMemory.activeCandidate.candidateDescription)
+                move_x=\(refinementResult.moveXY.map { String(format: "%.1f", $0.x) } ?? "nil")
+                move_y=\(refinementResult.moveXY.map { String(format: "%.1f", $0.y) } ?? "nil")
+                action_origin_box=\(Self.describe(previousBox))
                 dx=\(refinementResult.adjustment?.dx ?? 0.0)
                 dy=\(refinementResult.adjustment?.dy ?? 0.0)
                 dw=\(refinementResult.adjustment?.dw ?? 0.0)
                 dh=\(refinementResult.adjustment?.dh ?? 0.0)
                 action=\(refinementResult.action?.rawValue ?? "nil")
                 step=\(refinementResult.stepSize?.rawValue ?? "nil")
-                replacement_box=\(refinementResult.replacementBox.map(Self.describe) ?? "nil")
+                proposal_box=\(refinementResult.proposalBox.map(Self.describe) ?? "nil")
+                proposal_candidate_id=\(proposalCandidate.id)
+                proposal_score=\(proposalCandidate.qualityScore)
+                proposal_description=\(proposalCandidate.candidateDescription)
+                proposal_note=\(proposalCandidate.evaluationNote)
                 previous_box=\(Self.describe(previousBox))
                 updated_box=\(Self.describe(updatedBox))
-                best_so_far_box=\(Self.describe(bestPresentationCandidate.box))
-                best_so_far_source=\(bestPresentationCandidate.source)
+                best_so_far_box=\(Self.describe(episodeMemory.bestCandidate.box))
+                best_so_far_source=\(episodeMemory.bestCandidate.origin)
                 """,
                 named: String(format: "%02d_refinement_decision.txt", pass)
+            )
+            debugSession?.writeText(
+                Self.describe(episodeMemory),
+                named: String(format: "%02d_episode_memory.txt", pass)
             )
 
             onIntermediateHighlights?(
@@ -400,6 +596,7 @@ final class AIAnalysisPipeline {
             }
         }
 
+        let bestPresentationCandidate = episodeMemory.bestCandidate
         currentHighlights[activeHighlightIndex] = AIAnalysisResponse.HighlightData(
             id: currentHighlights[activeHighlightIndex].id,
             label: currentHighlights[activeHighlightIndex].label,
@@ -407,7 +604,7 @@ final class AIAnalysisPipeline {
             elementType: currentHighlights[activeHighlightIndex].elementType
         )
         debugSession?.appendLine(
-            "Final selected presentation box: \(Self.describe(bestPresentationCandidate.box)) [source=\(bestPresentationCandidate.source)]."
+            "Final selected presentation box: \(bestPresentationCandidate.id) \(Self.describe(bestPresentationCandidate.box)) [origin=\(bestPresentationCandidate.origin) score=\(bestPresentationCandidate.qualityScore)]."
         )
 
         return AIAnalysisResponse(
@@ -420,27 +617,34 @@ final class AIAnalysisPipeline {
     }
 
     private func refineHighlight(
-        _ highlight: AIAnalysisResponse.HighlightData,
-        bestPresentationBox: AIAnalysisResponse.BoundingBox,
-        historyBoxes: [AIAnalysisResponse.BoundingBox],
+        highlight: AIAnalysisResponse.HighlightData,
+        activeCandidate: EpisodeCandidate,
+        bestCandidate: EpisodeCandidate,
+        visibleCandidates: [EpisodeCandidate],
         screenshot: CGImage,
         query: String,
         settings: AppSettings,
         pass: Int,
         debugSession: AnalysisDebugSession?
     ) async -> HighlightRefinementResult {
-        let currentBox = highlight.boundingBox.clampedToUnitSpace()
+        let currentBox = activeCandidate.box.clampedToUnitSpace()
 
-        print("[OpenHalo] Refining highlight \(highlight.id) label=\"\(highlight.label)\" pass=\(pass) startingBox=\(currentBox)")
+        print("[OpenHalo] Refining highlight \(highlight.id) label=\"\(highlight.label)\" pass=\(pass) activeCandidate=\(activeCandidate.id) startingBox=\(currentBox)")
 
         do {
+            let displayedCandidates = Self.renderedCandidates(
+                from: visibleCandidates,
+                activeCandidateID: activeCandidate.id,
+                bestCandidateID: bestCandidate.id
+            )
             let renderings = try AnnotatedScreenshotRenderer.renderRefinementImages(
                 image: screenshot,
-                currentBox: currentBox,
-                historyBoxes: historyBoxes,
-                bestPresentationBox: bestPresentationBox,
+                displayedCandidates: displayedCandidates,
+                activeCandidateID: activeCandidate.id,
                 minimumCropPixelSize: minimumCropPixelSize,
-                cropExpansionFactor: cropExpansionFactor
+                cropExpansionFactor: cropExpansionFactor,
+                minimumActiveContentRenderSize: minimumActiveContentRenderSize,
+                actionCanvasGhostOffsetRange: actionCanvasGhostOffsetRange
             )
             debugSession?.writeImage(
                 renderings.fullAnnotatedImage,
@@ -454,21 +658,28 @@ final class AIAnalysisPipeline {
                 renderings.cropAnnotatedImage,
                 named: String(format: "%02d_refinement_annotated.png", pass)
             )
+            debugSession?.writeImage(
+                renderings.activeContentImage,
+                named: String(format: "%02d_refinement_active_content.png", pass)
+            )
             let fullAnnotatedBase64 = try renderings.fullAnnotatedImage.toBase64JPEG(
                 quality: settings.compressionQuality
             )
             let cropAnnotatedBase64 = try renderings.cropAnnotatedImage.toBase64JPEG(
                 quality: settings.compressionQuality
             )
+            let activeContentBase64 = try renderings.activeContentImage.toBase64JPEG(
+                quality: settings.compressionQuality
+            )
             let userPrompt = Self.buildRefinementUserPrompt(
                 query: query,
                 highlight: highlight,
-                currentBox: currentBox,
-                bestPresentationBox: bestPresentationBox,
-                historyBoxes: historyBoxes,
+                activeCandidate: activeCandidate,
+                bestCandidate: bestCandidate,
+                visibleCandidates: visibleCandidates,
                 cropBox: renderings.cropBoxInImage,
-                currentBoxInCrop: renderings.currentBoxInCrop,
-                bestBoxInCrop: renderings.bestBoxInCrop,
+                activeContentBox: renderings.activeContentBoxInImage,
+                cropCandidates: renderings.candidatesInCrop,
                 iteration: pass
             )
             debugSession?.writeText(
@@ -486,12 +697,13 @@ final class AIAnalysisPipeline {
                 base64Images: [
                     fullAnnotatedBase64,
                     cropAnnotatedBase64,
+                    activeContentBase64,
                 ],
                 userPrompt: userPrompt,
                 model: settings.selectedModel,
                 apiKey: settings.apiKey,
                 systemPrompt: Self.buildRefinementPrompt(),
-                reasoning: settings.reasoningConfiguration,
+                reasoning: nil,
                 rawContentHandler: { rawContent in
                     debugSession?.writeText(
                         rawContent,
@@ -510,16 +722,49 @@ final class AIAnalysisPipeline {
             case .accept:
                 return HighlightRefinementResult(
                     accepted: true,
-                    preferredCandidate: refinement.preferredCandidate,
-                    coordinateSpace: refinement.coordinateSpace,
-                    replacementBox: nil,
+                    relocalizeRequested: false,
+                    activeCandidateDescription: refinement.activeCandidateDescription,
+                    activeCandidateAssessment: refinement.activeCandidateAssessment,
+                    bestCandidateID: refinement.bestCandidateID,
+                    legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                    bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                    bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                    moveXY: nil,
+                    proposalBox: nil,
+                    proposalScore: nil,
+                    proposalNote: nil,
+                    proposalDescription: nil,
                     adjustment: nil,
                     action: nil,
                     stepSize: nil,
-                    confidence: refinement.confidence
+                    confidence: refinement.confidence,
+                    reason: refinement.reason
                 )
 
-            case .adjust:
+            case .move:
+                if let moveXY = refinement.moveXY {
+                    return HighlightRefinementResult(
+                        accepted: false,
+                        relocalizeRequested: false,
+                        activeCandidateDescription: refinement.activeCandidateDescription,
+                        activeCandidateAssessment: refinement.activeCandidateAssessment,
+                        bestCandidateID: refinement.bestCandidateID,
+                        legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                        bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                        bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                        moveXY: Self.clampedMoveXY(moveXY),
+                        proposalBox: nil,
+                        proposalScore: Self.scoreFromConfidence(refinement.confidence),
+                        proposalNote: refinement.reason ?? "Predicted move candidate; verify on the next screenshot.",
+                        proposalDescription: nil,
+                        adjustment: nil,
+                        action: nil,
+                        stepSize: nil,
+                        confidence: refinement.confidence,
+                        reason: refinement.reason
+                    )
+                }
+
                 if let targetBox = refinement.targetBox,
                    let coordinateSpace = refinement.coordinateSpace {
                     let globalTargetBox: AIAnalysisResponse.BoundingBox
@@ -540,52 +785,114 @@ final class AIAnalysisPipeline {
 
                     return HighlightRefinementResult(
                         accepted: false,
-                        preferredCandidate: refinement.preferredCandidate,
-                        coordinateSpace: refinement.coordinateSpace,
-                        replacementBox: globalTargetBox,
+                        relocalizeRequested: false,
+                        activeCandidateDescription: refinement.activeCandidateDescription,
+                        activeCandidateAssessment: refinement.activeCandidateAssessment,
+                        bestCandidateID: refinement.bestCandidateID,
+                        legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                        bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                        bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                        moveXY: nil,
+                        proposalBox: globalTargetBox,
+                        proposalScore: refinement.proposalScore ?? Self.scoreFromConfidence(refinement.confidence),
+                        proposalNote: refinement.proposalNote ?? refinement.reason,
+                        proposalDescription: refinement.proposalDescription,
                         adjustment: nil,
                         action: nil,
                         stepSize: nil,
-                        confidence: refinement.confidence
+                        confidence: refinement.confidence,
+                        reason: refinement.reason
                     )
                 }
 
                 if refinement.hasRelativeAdjustment {
                     return HighlightRefinementResult(
                         accepted: false,
-                        preferredCandidate: refinement.preferredCandidate,
-                        coordinateSpace: refinement.coordinateSpace,
-                        replacementBox: nil,
+                        relocalizeRequested: false,
+                        activeCandidateDescription: refinement.activeCandidateDescription,
+                        activeCandidateAssessment: refinement.activeCandidateAssessment,
+                        bestCandidateID: refinement.bestCandidateID,
+                        legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                        bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                        bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                        moveXY: nil,
+                        proposalBox: nil,
+                        proposalScore: refinement.proposalScore,
+                        proposalNote: refinement.proposalNote,
+                        proposalDescription: refinement.proposalDescription,
                         adjustment: Self.normalizedAdjustment(from: refinement),
                         action: nil,
                         stepSize: nil,
-                        confidence: refinement.confidence
+                        confidence: refinement.confidence,
+                        reason: refinement.reason
                     )
                 }
 
                 guard let action = refinement.action, let stepSize = refinement.stepSize else {
                     print("[OpenHalo] Refinement returned adjust without compensation for \(highlight.id); stopping")
                     return HighlightRefinementResult(
-                        accepted: true,
-                        preferredCandidate: refinement.preferredCandidate,
-                        coordinateSpace: refinement.coordinateSpace,
-                        replacementBox: nil,
+                        accepted: false,
+                        relocalizeRequested: false,
+                        activeCandidateDescription: refinement.activeCandidateDescription,
+                        activeCandidateAssessment: refinement.activeCandidateAssessment,
+                        bestCandidateID: refinement.bestCandidateID ?? bestCandidate.id,
+                        legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                        bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                        bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                        moveXY: nil,
+                        proposalBox: nil,
+                        proposalScore: nil,
+                        proposalNote: nil,
+                        proposalDescription: nil,
                         adjustment: nil,
                         action: nil,
                         stepSize: nil,
-                        confidence: refinement.confidence
+                        confidence: refinement.confidence,
+                        reason: refinement.reason
                     )
                 }
 
                 return HighlightRefinementResult(
                     accepted: false,
-                    preferredCandidate: refinement.preferredCandidate,
-                    coordinateSpace: refinement.coordinateSpace,
-                    replacementBox: nil,
+                    relocalizeRequested: false,
+                    activeCandidateDescription: refinement.activeCandidateDescription,
+                    activeCandidateAssessment: refinement.activeCandidateAssessment,
+                    bestCandidateID: refinement.bestCandidateID,
+                    legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                    bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                    bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                    moveXY: nil,
+                    proposalBox: nil,
+                    proposalScore: refinement.proposalScore,
+                    proposalNote: refinement.proposalNote,
+                    proposalDescription: refinement.proposalDescription,
                     adjustment: nil,
                     action: action,
                     stepSize: stepSize,
-                    confidence: refinement.confidence
+                    confidence: refinement.confidence,
+                    reason: refinement.reason
+                )
+
+            case .relocalize:
+                return HighlightRefinementResult(
+                    accepted: false,
+                    relocalizeRequested: true,
+                    activeCandidateDescription: refinement.activeCandidateDescription,
+                    activeCandidateAssessment: refinement.activeCandidateAssessment,
+                    bestCandidateID: refinement.bestCandidateID,
+                    legacyPreferredCandidate: refinement.legacyPreferredCandidate,
+                    bestCandidateScore: refinement.bestCandidateScore ?? Self.scoreFromConfidence(refinement.confidence),
+                    bestCandidateNote: refinement.bestCandidateNote ?? refinement.reason,
+                    moveXY: nil,
+                    proposalBox: nil,
+                    proposalScore: nil,
+                    proposalNote: nil,
+                    proposalDescription: nil,
+                    adjustment: nil,
+                    action: nil,
+                    stepSize: nil,
+                    confidence: refinement.confidence,
+                    reason: refinement.reason
                 )
             }
         } catch {
@@ -595,15 +902,108 @@ final class AIAnalysisPipeline {
                 named: String(format: "%02d_refinement_error.txt", pass)
             )
             return HighlightRefinementResult(
-                accepted: true,
-                preferredCandidate: .bestSoFar,
-                coordinateSpace: nil,
-                replacementBox: nil,
+                accepted: false,
+                relocalizeRequested: false,
+                activeCandidateDescription: bestCandidate.candidateDescription,
+                activeCandidateAssessment: bestCandidate.evaluationNote,
+                bestCandidateID: bestCandidate.id,
+                legacyPreferredCandidate: .bestSoFar,
+                bestCandidateScore: bestCandidate.qualityScore,
+                bestCandidateNote: bestCandidate.evaluationNote,
+                moveXY: nil,
+                proposalBox: nil,
+                proposalScore: nil,
+                proposalNote: nil,
+                proposalDescription: nil,
                 adjustment: nil,
                 action: nil,
                 stepSize: nil,
-                confidence: nil
+                confidence: nil,
+                reason: error.localizedDescription
             )
+        }
+    }
+
+    private func relocalizeHighlight(
+        screenshot: CGImage,
+        screenshotSize: CGSize,
+        query: String,
+        highlight: AIAnalysisResponse.HighlightData,
+        activeCandidate: EpisodeCandidate,
+        bestCandidate: EpisodeCandidate,
+        visibleCandidates: [EpisodeCandidate],
+        settings: AppSettings,
+        pass: Int,
+        debugSession: AnalysisDebugSession?
+    ) async -> AIAnalysisResponse.HighlightData? {
+        let systemPrompt = Self.buildRelocalizationPrompt(
+            imageWidth: Int(screenshotSize.width),
+            imageHeight: Int(screenshotSize.height)
+        )
+        let userPrompt = Self.buildRelocalizationUserPrompt(
+            query: query,
+            highlight: highlight,
+            activeCandidate: activeCandidate,
+            bestCandidate: bestCandidate,
+            visibleCandidates: visibleCandidates
+        )
+        debugSession?.writeText(
+            """
+            === SYSTEM PROMPT ===
+            \(systemPrompt)
+
+            === USER PROMPT ===
+            \(userPrompt)
+            """,
+            named: String(format: "%02d_relocalize_request.txt", pass)
+        )
+
+        do {
+            let base64 = try screenshot.toBase64JPEG(quality: settings.compressionQuality)
+            let rawResponse = try await client.analyzeScreenshot(
+                base64Image: base64,
+                userQuery: userPrompt,
+                model: settings.selectedModel,
+                apiKey: settings.apiKey,
+                systemPrompt: systemPrompt,
+                reasoning: settings.reasoningConfiguration,
+                rawContentHandler: { rawContent in
+                    debugSession?.writeText(
+                        rawContent,
+                        named: String(format: "%02d_relocalize_response_content.txt", pass)
+                    )
+                }
+            )
+            debugSession?.writeText(
+                Self.describe(rawResponse),
+                named: String(format: "%02d_relocalize_response_raw.txt", pass)
+            )
+            let normalizedResponse = Self.normalizedResponse(
+                rawResponse,
+                imageSize: screenshotSize,
+                debugSession: debugSession
+            )
+            debugSession?.writeText(
+                Self.describe(normalizedResponse),
+                named: String(format: "%02d_relocalize_response.txt", pass)
+            )
+
+            guard let relocalizedIndex = Self.activeHighlightIndex(
+                highlights: normalizedResponse.highlights,
+                primaryHighlightId: normalizedResponse.nextAction?.highlightId
+            ) else {
+                debugSession?.appendLine("Pass \(pass): relocalize returned no active highlight.")
+                return nil
+            }
+
+            return normalizedResponse.highlights[relocalizedIndex]
+        } catch {
+            debugSession?.writeText(
+                "error=\(error.localizedDescription)",
+                named: String(format: "%02d_relocalize_error.txt", pass)
+            )
+            debugSession?.appendLine("Pass \(pass): relocalize failed - \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -627,6 +1027,21 @@ final class AIAnalysisPipeline {
             y: centerY - (height / 2),
             width: width,
             height: height
+        ).clampedToUnitSpace()
+    }
+
+    nonisolated static func applyMove(
+        to box: AIAnalysisResponse.BoundingBox,
+        moveXY: AIHighlightRefinementResponse.MoveXY
+    ) -> AIAnalysisResponse.BoundingBox {
+        let clampedBox = box.clampedToUnitSpace()
+        let clampedMove = clampedMoveXY(moveXY)
+
+        return AIAnalysisResponse.BoundingBox(
+            x: clampedBox.x + (clampedMove.x * clampedBox.width),
+            y: clampedBox.y + (clampedMove.y * clampedBox.height),
+            width: clampedBox.width,
+            height: clampedBox.height
         ).clampedToUnitSpace()
     }
 
@@ -739,19 +1154,108 @@ final class AIAnalysisPipeline {
         return merged
     }
 
-    nonisolated static func resolveModelPreferredCandidate(
-        preferredCandidate: AIHighlightRefinementResponse.PreferredCandidate?,
-        current: PresentationCandidate,
-        bestSoFar: PresentationCandidate
-    ) -> PresentationCandidate {
-        switch preferredCandidate {
-        case .current:
-            return current
-        case .bestSoFar:
-            return bestSoFar
-        case nil:
-            return current
+    nonisolated static func resolveBestCandidateID(
+        explicitCandidateID: String?,
+        legacyPreferredCandidate: AIHighlightRefinementResponse.PreferredCandidate?,
+        proposalCandidateID: String?,
+        episodeMemory: EpisodeMemory,
+        defaultCandidateID: String
+    ) -> String {
+        resolveBestCandidateID(
+            explicitCandidateID: explicitCandidateID,
+            legacyPreferredCandidate: legacyPreferredCandidate,
+            proposalCandidateID: proposalCandidateID,
+            episodeMemory: episodeMemory,
+            defaultCandidateID: defaultCandidateID,
+            allowProposalToken: true
+        )
+    }
+
+    nonisolated static func resolveBestCandidateID(
+        explicitCandidateID: String?,
+        legacyPreferredCandidate: AIHighlightRefinementResponse.PreferredCandidate?,
+        proposalCandidateID: String?,
+        episodeMemory: EpisodeMemory,
+        defaultCandidateID: String,
+        allowProposalToken: Bool = true
+    ) -> String {
+        if let explicitCandidateID {
+            let normalizedID = explicitCandidateID
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            if allowProposalToken, normalizedID == "proposal", let proposalCandidateID {
+                return proposalCandidateID
+            }
+            if let matchedCandidate = episodeMemory.candidate(matchingLooseID: explicitCandidateID) {
+                return matchedCandidate.id
+            }
         }
+
+        switch legacyPreferredCandidate {
+        case .current:
+            if allowProposalToken {
+                return proposalCandidateID ?? episodeMemory.activeCandidateID
+            }
+            return episodeMemory.activeCandidateID
+        case .bestSoFar:
+            return episodeMemory.bestCandidateID
+        case nil:
+            return defaultCandidateID
+        }
+    }
+
+    nonisolated static func renderedCandidates(
+        from visibleCandidates: [EpisodeCandidate],
+        activeCandidateID: String,
+        bestCandidateID: String
+    ) -> [RenderedEpisodeCandidate] {
+        visibleCandidates.map { candidate in
+            let role: RenderedEpisodeCandidate.Role
+            if candidate.id == activeCandidateID {
+                role = .active
+            } else if candidate.id == bestCandidateID {
+                role = .best
+            } else {
+                role = .history
+            }
+            return RenderedEpisodeCandidate(
+                candidateID: candidate.id,
+                box: candidate.box,
+                qualityScore: candidate.qualityScore,
+                role: role
+            )
+        }
+    }
+
+    nonisolated static func scoreFromConfidence(_ confidence: Double?) -> Int? {
+        guard let confidence, confidence.isFinite else { return nil }
+        return max(0, min(100, Int((confidence * 100).rounded())))
+    }
+
+    nonisolated static func sanitizedEvaluationNote(
+        _ note: String?,
+        fallback: String
+    ) -> String {
+        let candidateText = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sourceText = (candidateText?.isEmpty == false ? candidateText : fallback) ?? fallback
+        return sanitizeText(
+            sourceText,
+            maxSentences: 1,
+            maxCharacters: 120
+        )
+    }
+
+    nonisolated static func sanitizedCandidateDescription(
+        _ description: String?,
+        fallback: String
+    ) -> String {
+        let candidateText = description?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sourceText = (candidateText?.isEmpty == false ? candidateText : fallback) ?? fallback
+        return sanitizeText(
+            sourceText,
+            maxSentences: 1,
+            maxCharacters: 90
+        )
     }
 
     nonisolated static func intersectionOverUnion(
@@ -932,6 +1436,20 @@ final class AIAnalysisPipeline {
         return min(max(raw, -6.0), 6.0)
     }
 
+    nonisolated private static func clampedMoveXY(
+        _ moveXY: AIHighlightRefinementResponse.MoveXY
+    ) -> AIHighlightRefinementResponse.MoveXY {
+        AIHighlightRefinementResponse.MoveXY(
+            x: clampMoveComponent(moveXY.x),
+            y: clampMoveComponent(moveXY.y)
+        )
+    }
+
+    nonisolated private static func clampMoveComponent(_ value: Double) -> Double {
+        guard value.isFinite else { return 0.0 }
+        return min(max(value, -4.0), 4.0)
+    }
+
     nonisolated private static func activeHighlightIndex(
         highlights: [AIAnalysisResponse.HighlightData],
         primaryHighlightId: String?
@@ -1024,81 +1542,199 @@ final class AIAnalysisPipeline {
         You refine a UI highlight for OpenHalo.
 
         Inputs:
-        - Image 1: full-screen context with the CURRENT candidate box.
-        - Image 2: zoomed crop around the CURRENT candidate box.
+        - Image 1: full-screen context with candidate boxes and an action reticle centered on the ACTIVE candidate.
+        - Image 2: zoomed crop around the ACTIVE candidate with the same action reticle.
+        - Image 3: the raw contents of the ACTIVE candidate box, cropped exactly to the current box and enlarged only for visibility.
 
         Visual markers:
-        - Current candidate: thick white/magenta box.
-        - Best-so-far presentation candidate: green dashed box.
-        - Earlier candidates: thin yellow dashed boxes with a teal trajectory.
+        - Active candidate: solid red box with a badge like #2 84.
+        - Best candidate so far: green dashed box with a badge like #1 91.
+        - Recent history candidates: yellow dashed boxes with badges.
+        - The action reticle uses the ACTIVE candidate center as (0,0).
+        - Positive x moves right. Positive y moves down.
+        - A move of (1,0) shifts the next box by one current-box width to the right.
+        - A move of (0,-1) shifts the next box by one current-box height upward.
+        - Ghost boxes show coarse reference positions for integer move coordinates.
 
         Goal:
         - Choose the most useful FINAL presentation box for a human click, not just the newest box.
-        - If the current hypothesis is semantically wrong, retarget.
-        - Prefer crop-space target_box when possible; use screen-space only for larger retargets.
+        - Evaluate every visible candidate explicitly.
+        - If a NEW candidate would be better, choose the next move on the reticle, but treat that moved box as a prediction to verify on the next round.
+        - If an older candidate is still better, keep it as best.
+        - If the current local region is wrong, request a fresh relocalize instead of forcing a local adjustment.
 
         Output:
         - Return valid JSON only and follow the provided schema exactly.
-        - Always set preferred_candidate to current or best_so_far on every response.
-        - For accept, keep the selected preferred_candidate and do not move the box.
-        - For adjust, return coordinate_space plus target_box and also say whether current or best_so_far is the better final presentation candidate right now.
+        - Always set active_candidate_description as one short phrase describing what is inside the active candidate box.
+        - Always set active_candidate_assessment as one short sentence saying why the active candidate is or is not the requested target.
+        - Always set best_candidate_id on every response.
+        - best_candidate_id must be one of the provided candidate IDs from the current visible episode memory.
+        - Always set best_candidate_score as an integer from 0 to 100.
+        - Always set best_candidate_note as one short sentence.
+        - For accept, choose the best existing candidate and do not propose a new box.
+        - For move, return move_xy with numeric x and y.
+        - For move, best_candidate_id must still name the best already-visible candidate from this round. Do not name an unseen moved box as best yet.
+        - move_xy may use any finite decimal values within the range [-4, 4].
+        - High-precision floating-point values are allowed and preserved by the framework.
+        - move_xy describes the NEXT box center in current-box units, not pixels and not normalized screen coordinates.
+        - For relocalize, do not return a proposal box. Use relocalize only when the target likely sits outside the current local region and a fresh global search is needed.
+        - Do not return a freeform target_box unless falling back for legacy compatibility.
         - Never return pixels.
-        - Do not repeat explanations or output extra prose.
+        - Do not output extra prose.
 
         Rules:
         - Reason from UI semantics and app context, not literal text.
         - Ignore the OpenHalo assistant window and echoed user text unless the user explicitly asks about OpenHalo.
+        - Use Image 3 to judge exactly what the ACTIVE candidate box contains.
+        - Image 3 preserves the exact box contents even if it has been enlarged for readability.
+        - If Image 3 disagrees with older candidate memory, trust Image 3.
+        - If Image 3 clearly shows the wrong object, do not accept the active candidate.
+        - If several rounds stay inside the same wrong functional area, or the active box has drifted out of the original functional cluster for the requested control, use relocalize instead of making another local adjustment.
         - The user clicks manually, so perfect click-precision is unnecessary.
         - Slightly larger but stable is better than tiny and jittery.
+        - Best means: target clearly included, easy for a human to understand, stable, and not excessively large.
+        - Width and height stay fixed during move in this version.
         - You, not the framework, decide which candidate is currently best for the final presentation box.
+        - candidate descriptions should say what the box contains, not why it is good.
+        - active_candidate_assessment should judge the current box against the user request.
+        - Keep notes short and factual. Do not reveal hidden chain-of-thought.
 
         Example accept:
-        {"status":"accept","preferred_candidate":"best_so_far","reason":"The target is already clearly inside the best-so-far box.","confidence":0.91}
+        {"status":"accept","active_candidate_description":"toolbar icon near the close controls","active_candidate_assessment":"The active box is not the close button, but c1 already is.","best_candidate_id":"c1","best_candidate_score":91,"best_candidate_note":"Candidate c1 already cleanly covers the target for a human click.","reason":"Candidate c1 is already the clearest final box.","confidence":0.91}
 
-        Example adjust:
-        {"status":"adjust","preferred_candidate":"current","coordinate_space":"crop","target_box":{"x":0.34,"y":0.28,"width":0.22,"height":0.24},"reason":"The target is slightly to the right in the crop, and this updated candidate is already the better final box.","confidence":0.78}
+        Example move:
+        {"status":"move","active_candidate_description":"browser tab title","active_candidate_assessment":"The active box is on a tab, not on the new-tab button.","best_candidate_id":"c1","best_candidate_score":84,"best_candidate_note":"Candidate c1 remains the best verified box while the next move is tested.","move_xy":{"x":0.85,"y":-0.10},"reason":"The requested control is slightly to the right of the current box and a touch higher.","confidence":0.78}
+
+        Example relocalize:
+        {"status":"relocalize","active_candidate_description":"browser extension icon in the toolbar","active_candidate_assessment":"The active box is in the wrong toolbar region and does not contain the requested target.","best_candidate_id":"c1","best_candidate_score":82,"best_candidate_note":"Candidate c1 is still the best current fallback, but a fresh global search is needed.","reason":"Current visible candidates are all in the wrong functional area; restart from the full screen.","confidence":0.74}
         """
     }
 
     nonisolated static func buildRefinementUserPrompt(
         query: String,
         highlight: AIAnalysisResponse.HighlightData,
-        currentBox: AIAnalysisResponse.BoundingBox,
-        bestPresentationBox: AIAnalysisResponse.BoundingBox,
-        historyBoxes: [AIAnalysisResponse.BoundingBox],
+        activeCandidate: EpisodeCandidate,
+        bestCandidate: EpisodeCandidate,
+        visibleCandidates: [EpisodeCandidate],
         cropBox: AIAnalysisResponse.BoundingBox,
-        currentBoxInCrop: AIAnalysisResponse.BoundingBox,
-        bestBoxInCrop: AIAnalysisResponse.BoundingBox?,
+        activeContentBox: AIAnalysisResponse.BoundingBox,
+        cropCandidates: [RenderedEpisodeCandidate],
         iteration: Int
     ) -> String {
-        let historySummary: String
-        if historyBoxes.count <= 1 {
-            historySummary = "History: none."
-        } else {
-            let recentHistory = Array(historyBoxes.suffix(4))
-            let lines = recentHistory.enumerated().map { index, box in
-                "\(index + 1). \(describe(box))"
+        let cropLookup = Dictionary(uniqueKeysWithValues: cropCandidates.map { ($0.candidateID, $0) })
+        let candidateSummary = visibleCandidates
+            .map { candidate in
+                let role: String
+                if candidate.id == activeCandidate.id {
+                    role = "active"
+                } else if candidate.id == bestCandidate.id {
+                    role = "best"
+                } else {
+                    role = "history"
+                }
+                let cropBoxDescription = cropLookup[candidate.id].map { describe($0.box) } ?? "not_visible"
+                return "- \(candidate.id) role=\(role) pass=\(candidate.passIndex) origin=\(candidate.origin) score=\(candidate.qualityScore) screen_box=\(describe(candidate.box)) crop_box=\(cropBoxDescription) description=\"\(candidate.candidateDescription)\" assessment=\"\(candidate.evaluationNote)\""
             }
-            historySummary = "Recent history oldest->newest: \(lines.joined(separator: " | "))"
-        }
+            .joined(separator: "\n")
 
         return """
         User request: \(query)
         Hypothesis label: \(highlight.label)
         Element type: \(highlight.elementType ?? "unknown")
         Pass: \(iteration)
-        \(historySummary)
+        Active candidate: \(activeCandidate.id)
+        Best candidate so far: \(bestCandidate.id)
+        Crop window on full screen: \(describe(cropBox))
+        Exact active-candidate crop on full screen: \(describe(activeContentBox))
 
-        Full-screen current box: \(describe(currentBox))
-        Full-screen best-so-far box: \(describe(bestPresentationBox))
-        Full-screen crop window: \(describe(cropBox))
-        Crop-local current box: \(describe(currentBoxInCrop))
-        Crop-local best-so-far box: \(bestBoxInCrop.map(describe) ?? "not_visible")
+        Visible episode memory:
+        \(candidateSummary)
 
-        Choose the UI element that best satisfies the request.
-        On every response, choose which candidate is currently the better FINAL presentation box by setting preferred_candidate.
-        If current is already good enough, return accept with the better preferred_candidate.
-        Otherwise return a target_box in crop or screen space and still set preferred_candidate.
+        Image guide:
+        - Image 1 shows full-screen context with candidate roles and the action reticle.
+        - Image 2 shows the local crop around the active candidate with the same action reticle.
+        - Image 3 is the raw contents of the active candidate box, cropped exactly to the current box and enlarged only for readability.
+        - The reticle origin (0,0) is the current active-box center.
+        - Positive x moves right. Positive y moves down.
+        - A move of (1,0) means one current-box width to the right.
+        - A move of (0,-1) means one current-box height upward.
+        - You may use any finite decimal move_xy values within [-4, 4].
+        - Integer ghost boxes are only coarse references; you are not limited to integer coordinates.
+
+        Choose the candidate that is currently the best FINAL presentation box for a human click.
+        Use each candidate description as memory for what earlier boxes actually contained.
+        You may keep any prior candidate as best if it is better than the next predicted move.
+        If none of the visible candidates is good enough, return move with move_xy.
+        If a visible candidate is already good enough, return accept and name that candidate in best_candidate_id.
+        For move, keep best_candidate_id on the best already-visible candidate from this round. The moved box is a new unverified candidate for the next round.
+        If Image 3 disagrees with older candidate memory, trust Image 3.
+        If the current crop is clearly the wrong functional area, or has drifted out of the original functional cluster for the requested control, return relocalize instead of another local adjustment.
+        If you return move, do not return a freeform target_box.
+        """
+    }
+
+    static func buildRelocalizationPrompt(
+        imageWidth: Int,
+        imageHeight: Int
+    ) -> String {
+        """
+        You are performing a fresh global UI search for OpenHalo.
+
+        Search the full screenshot again from scratch. Do not stay anchored to the current local region if it appears wrong.
+
+        Output:
+        - Return valid JSON only and follow the provided schema exactly.
+        - Return exactly one immediate next_action.
+        - Use normalized coordinates in the 0..1 range for an image of size \(imageWidth)x\(imageHeight).
+        - Return one or more highlights if the target is visible.
+
+        Rules:
+        - Previous candidates listed in the user prompt are likely wrong or ambiguous unless clearly marked as best.
+        - Use them as negative evidence and search elsewhere when needed.
+        - Focus on functional UI semantics, not literal echoed text.
+        - Ignore the OpenHalo assistant window unless the user is explicitly asking about OpenHalo.
+        - Do not fabricate later steps.
+        - Do not invent alternate keys such as element or bbox.
+        - next_action must be an object with instruction and highlight_id.
+
+        Example valid response:
+        {"message":"I found the requested control.","summary":"The requested control is visible.","next_action":{"instruction":"Click the highlighted control.","highlight_id":"h1"},"highlights":[{"id":"h1","label":"Requested control","bounding_box":{"x":0.42,"y":0.10,"width":0.06,"height":0.03},"element_type":"button"}]}
+        """
+    }
+
+    nonisolated static func buildRelocalizationUserPrompt(
+        query: String,
+        highlight: AIAnalysisResponse.HighlightData,
+        activeCandidate: EpisodeCandidate,
+        bestCandidate: EpisodeCandidate,
+        visibleCandidates: [EpisodeCandidate]
+    ) -> String {
+        let candidateSummary = visibleCandidates
+            .map { candidate in
+                let role: String
+                if candidate.id == activeCandidate.id {
+                    role = "active"
+                } else if candidate.id == bestCandidate.id {
+                    role = "best"
+                } else {
+                    role = "history"
+                }
+                return "- \(candidate.id) role=\(role) pass=\(candidate.passIndex) box=\(describe(candidate.box)) description=\"\(candidate.candidateDescription)\" assessment=\"\(candidate.evaluationNote)\""
+            }
+            .joined(separator: "\n")
+
+        return """
+        User request: \(query)
+        Current hypothesis label: \(highlight.label)
+        Current active candidate: \(activeCandidate.id)
+        Current best candidate: \(bestCandidate.id)
+
+        Candidate memory:
+        \(candidateSummary)
+
+        Perform a fresh global search across the whole screenshot.
+        If the current local region appears wrong or ambiguous, ignore it and find a better region elsewhere on screen.
+        Use the candidate descriptions and assessments as negative evidence when they describe the wrong object.
         """
     }
 
@@ -1361,9 +1997,18 @@ final class AIAnalysisPipeline {
         let confidence = response.confidence.map { String($0) } ?? "nil"
         let lines = [
             "status: \(response.status.rawValue)",
-            "preferred_candidate: \(response.preferredCandidate?.rawValue ?? "nil")",
-            "coordinate_space: \(response.coordinateSpace?.rawValue ?? "nil")",
-            "target_box: \(response.targetBox.map(describe) ?? "nil")",
+            "active_candidate_description: \(response.activeCandidateDescription ?? "nil")",
+            "active_candidate_assessment: \(response.activeCandidateAssessment ?? "nil")",
+            "best_candidate_id: \(response.bestCandidateID ?? "nil")",
+            "best_candidate_score: \(response.bestCandidateScore.map(String.init) ?? "nil")",
+            "best_candidate_note: \(response.bestCandidateNote ?? "nil")",
+            "move_xy: \(response.moveXY.map { "x=\($0.x) y=\($0.y)" } ?? "nil")",
+            "proposal_coordinate_space: \(response.proposal?.coordinateSpace?.rawValue ?? response.coordinateSpace?.rawValue ?? "nil")",
+            "proposal_target_box: \(response.proposal?.targetBox.map(describe) ?? response.targetBox.map(describe) ?? "nil")",
+            "proposal_score: \(response.proposalScore.map(String.init) ?? "nil")",
+            "proposal_note: \(response.proposalNote ?? "nil")",
+            "proposal_description: \(response.proposalDescription ?? "nil")",
+            "legacy_preferred_candidate: \(response.legacyPreferredCandidate?.rawValue ?? "nil")",
             "dx: \(response.dx.map { String($0) } ?? "nil")",
             "dy: \(response.dy.map { String($0) } ?? "nil")",
             "dw: \(response.dw.map { String($0) } ?? "nil")",
@@ -1385,6 +2030,22 @@ final class AIAnalysisPipeline {
             box.height
         )
     }
+
+    nonisolated private static func describe(_ memory: EpisodeMemory) -> String {
+        var lines: [String] = [
+            "active_candidate_id: \(memory.activeCandidateID)",
+            "best_candidate_id: \(memory.bestCandidateID)",
+            "candidates:"
+        ]
+
+        for candidate in memory.candidates.sorted(by: { $0.numericSortKey < $1.numericSortKey }) {
+            lines.append(
+                "  \(candidate.id) pass=\(candidate.passIndex) origin=\(candidate.origin) score=\(candidate.qualityScore) box=\(describe(candidate.box)) description=\"\(candidate.candidateDescription)\" assessment=\"\(candidate.evaluationNote)\""
+            )
+        }
+
+        return lines.joined(separator: "\n")
+    }
 }
 
 struct AnalysisResult {
@@ -1395,13 +2056,23 @@ struct AnalysisResult {
 
 private struct HighlightRefinementResult {
     let accepted: Bool
-    let preferredCandidate: AIHighlightRefinementResponse.PreferredCandidate?
-    let coordinateSpace: AIHighlightRefinementResponse.CoordinateSpace?
-    let replacementBox: AIAnalysisResponse.BoundingBox?
+    let relocalizeRequested: Bool
+    let activeCandidateDescription: String?
+    let activeCandidateAssessment: String?
+    let bestCandidateID: String?
+    let legacyPreferredCandidate: AIHighlightRefinementResponse.PreferredCandidate?
+    let bestCandidateScore: Int?
+    let bestCandidateNote: String?
+    let moveXY: AIHighlightRefinementResponse.MoveXY?
+    let proposalBox: AIAnalysisResponse.BoundingBox?
+    let proposalScore: Int?
+    let proposalNote: String?
+    let proposalDescription: String?
     let adjustment: RelativeBoxAdjustment?
     let action: AIHighlightRefinementResponse.Action?
     let stepSize: AIHighlightRefinementResponse.StepSize?
     let confidence: Double?
+    let reason: String?
 }
 
 private struct CaptureTarget {
@@ -1409,10 +2080,130 @@ private struct CaptureTarget {
     let displayID: CGDirectDisplayID
 }
 
-struct PresentationCandidate: Equatable {
+struct EpisodeCandidate: Equatable {
+    let id: String
     let box: AIAnalysisResponse.BoundingBox
-    let confidence: Double?
-    let source: String
+    let passIndex: Int
+    let qualityScore: Int
+    let candidateDescription: String
+    let evaluationNote: String
+    let origin: String
+
+    var numericSortKey: Int {
+        Int(id.drop { !$0.isNumber }) ?? passIndex
+    }
+}
+
+struct EpisodeMemory: Equatable {
+    private(set) var candidates: [EpisodeCandidate]
+    var activeCandidateID: String
+    var bestCandidateID: String
+
+    init(
+        seedBox: AIAnalysisResponse.BoundingBox,
+        initialScore: Int,
+        initialNote: String,
+        initialDescription: String,
+        origin: String
+    ) {
+        let seed = EpisodeCandidate(
+            id: "c0",
+            box: seedBox.clampedToUnitSpace(),
+            passIndex: 0,
+            qualityScore: initialScore,
+            candidateDescription: initialDescription,
+            evaluationNote: initialNote,
+            origin: origin
+        )
+        self.candidates = [seed]
+        self.activeCandidateID = seed.id
+        self.bestCandidateID = seed.id
+    }
+
+    var activeCandidate: EpisodeCandidate {
+        candidate(withID: activeCandidateID) ?? candidates[0]
+    }
+
+    var bestCandidate: EpisodeCandidate {
+        candidate(withID: bestCandidateID) ?? candidates[0]
+    }
+
+    func candidate(withID id: String) -> EpisodeCandidate? {
+        candidates.first(where: { $0.id == id })
+    }
+
+    func candidate(matchingLooseID id: String) -> EpisodeCandidate? {
+        let normalizedID = id
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return candidates.first {
+            $0.id.lowercased() == normalizedID ||
+            "#\($0.numericSortKey)" == normalizedID ||
+            String($0.numericSortKey) == normalizedID
+        }
+    }
+
+    func visibleCandidates(maxAdditionalHistoryCandidates: Int) -> [EpisodeCandidate] {
+        var visibleIDs = [activeCandidateID]
+        if bestCandidateID != activeCandidateID {
+            visibleIDs.append(bestCandidateID)
+        }
+
+        let recentHistory = candidates
+            .filter { candidate in
+                candidate.id != activeCandidateID && candidate.id != bestCandidateID
+            }
+            .sorted(by: { $0.passIndex > $1.passIndex })
+            .prefix(maxAdditionalHistoryCandidates)
+
+        for candidate in recentHistory where !visibleIDs.contains(candidate.id) {
+            visibleIDs.append(candidate.id)
+        }
+
+        return visibleIDs.compactMap { candidateID in
+            candidate(withID: candidateID)
+        }
+    }
+
+    mutating func appendCandidate(
+        box: AIAnalysisResponse.BoundingBox,
+        passIndex: Int,
+        qualityScore: Int,
+        evaluationNote: String,
+        candidateDescription: String,
+        origin: String
+    ) -> EpisodeCandidate {
+        let candidate = EpisodeCandidate(
+            id: "c\(candidates.count)",
+            box: box.clampedToUnitSpace(),
+            passIndex: passIndex,
+            qualityScore: qualityScore,
+            candidateDescription: candidateDescription,
+            evaluationNote: evaluationNote,
+            origin: origin
+        )
+        candidates.append(candidate)
+        return candidate
+    }
+
+    mutating func updateCandidateMetadata(
+        id: String,
+        qualityScore: Int?,
+        evaluationNote: String?,
+        candidateDescription: String?
+    ) {
+        guard let index = candidates.firstIndex(where: { $0.id == id }) else { return }
+        let existing = candidates[index]
+        candidates[index] = EpisodeCandidate(
+            id: existing.id,
+            box: existing.box,
+            passIndex: existing.passIndex,
+            qualityScore: qualityScore ?? existing.qualityScore,
+            candidateDescription: candidateDescription ?? existing.candidateDescription,
+            evaluationNote: evaluationNote ?? existing.evaluationNote,
+            origin: existing.origin
+        )
+    }
 }
 
 struct RelativeBoxAdjustment: Equatable {

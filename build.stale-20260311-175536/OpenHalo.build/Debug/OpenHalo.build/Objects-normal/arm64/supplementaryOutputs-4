@@ -1,0 +1,23 @@
+{
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Models/ChatMessage.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatMessage.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatMessage.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatMessage.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatMessage.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatMessage.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Views/ChatPanelView.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatPanelView.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatPanelView.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatPanelView.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatPanelView.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/ChatPanelView.swiftdeps"
+  },
+  "/Users/aaronpang/Desktop/OpenHalo/OpenHalo/Views/HighlightRectangleView.swift" : {
+    "const-values" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRectangleView.swiftconstvalues",
+    "dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRectangleView.d",
+    "diagnostics" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRectangleView.dia",
+    "object" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRectangleView.o",
+    "swift-dependencies" : "/Users/aaronpang/Desktop/OpenHalo/build/OpenHalo.build/Debug/OpenHalo.build/Objects-normal/arm64/HighlightRectangleView.swiftdeps"
+  }
+}
