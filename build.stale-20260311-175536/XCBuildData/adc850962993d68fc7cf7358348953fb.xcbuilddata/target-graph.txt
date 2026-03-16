@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'OpenHaloTests' in project 'OpenHalo'
-➜ Explicit dependency on target 'OpenHalo' in project 'OpenHalo'
-Target 'OpenHalo' in project 'OpenHalo' (no dependencies)

@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'OpenHalo' in project 'OpenHalo' (no dependencies)
