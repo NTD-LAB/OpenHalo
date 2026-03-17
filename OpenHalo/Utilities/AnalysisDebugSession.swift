@@ -2,6 +2,8 @@ import CoreGraphics
 import Foundation
 
 struct AnalysisDebugSession: Sendable {
+    static let maximumRetainedImageCount = 300
+
     let rootURL: URL
 
     static func create(query: String, model: String) -> AnalysisDebugSession? {
@@ -57,6 +59,7 @@ struct AnalysisDebugSession: Sendable {
         do {
             let data = try image.encodedData(as: format)
             try data.write(to: fileURL, options: .atomic)
+            Self.trimRetainedImagesIfNeeded(rootURL: logsRootURL())
             appendLine("image: \(fileURL.lastPathComponent)")
         } catch {
             appendLine("image-write-failed: \(fileURL.lastPathComponent) error=\(error.localizedDescription)")
@@ -114,5 +117,59 @@ struct AnalysisDebugSession: Sendable {
         }
 
         return String(sanitized.prefix(40))
+    }
+
+    private func logsRootURL() -> URL {
+        rootURL.deletingLastPathComponent()
+    }
+
+    static func trimRetainedImagesIfNeeded(
+        rootURL: URL,
+        maxImageCount: Int = maximumRetainedImageCount,
+        fileManager: FileManager = .default
+    ) {
+        guard maxImageCount >= 0 else {
+            return
+        }
+
+        let imageFiles = retainedImageFiles(rootURL: rootURL, fileManager: fileManager)
+        let overflow = imageFiles.count - maxImageCount
+        guard overflow > 0 else {
+            return
+        }
+
+        for fileURL in imageFiles.prefix(overflow) {
+            try? fileManager.removeItem(at: fileURL)
+        }
+    }
+
+    static func retainedImageFiles(
+        rootURL: URL,
+        fileManager: FileManager = .default
+    ) -> [URL] {
+        guard let enumerator = fileManager.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: nil
+        ) else {
+            return []
+        }
+
+        let imageExtensions = Set(["png", "jpg", "jpeg"])
+        let urls = enumerator.compactMap { $0 as? URL }.filter { url in
+            imageExtensions.contains(url.pathExtension.lowercased())
+        }
+
+        return urls.sorted { lhs, rhs in
+            let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+
+            if lhsDate == rhsDate {
+                return lhs.path < rhs.path
+            }
+
+            return lhsDate < rhsDate
+        }
     }
 }

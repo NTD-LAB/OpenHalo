@@ -4,7 +4,7 @@ import AppKit
 
 @MainActor
 final class AIAnalysisPipeline {
-    private let capture: ScreenCaptureService
+    private let capture: any ScreenFrameProviding
     private let client: OpenRouterClient
     private let maximumRefinementPasses = 30
     private let visibleRefinementDelayNanoseconds: UInt64 = 250_000_000
@@ -24,9 +24,44 @@ final class AIAnalysisPipeline {
     private let actionChangeThreshold = 0.000_01
     private let defaultInitialPresentationConfidence = 0.62
 
-    init(capture: ScreenCaptureService, client: OpenRouterClient) {
+    init(capture: any ScreenFrameProviding, client: OpenRouterClient) {
         self.capture = capture
         self.client = client
+    }
+
+    func planIntent(
+        query: String,
+        settings: AppSettings,
+        context: PlannerConversationContext? = nil
+    ) async throws -> AIIntentPlannerResponse {
+        let captureTarget = try resolveCaptureTarget()
+        try await capture.ensureRunning(for: captureTarget.displayID)
+        let frame = try await capture.latestFrame(
+            for: captureTarget.displayID,
+            maxAge: 0.5,
+            waitUpTo: 1.0
+        )
+        let screenshotSize = CGSize(width: frame.image.width, height: frame.image.height)
+        let base64 = try frame.image.toBase64JPEG(quality: settings.compressionQuality)
+        let systemPrompt = Self.buildPlannerPrompt(
+            imageWidth: Int(screenshotSize.width),
+            imageHeight: Int(screenshotSize.height)
+        )
+        let userPrompt = Self.buildPlannerUserPrompt(
+            query: query,
+            context: context
+        )
+
+        let rawResponse = try await client.planIntent(
+            base64Image: base64,
+            userPrompt: userPrompt,
+            model: settings.selectedModel,
+            apiKey: settings.apiKey,
+            systemPrompt: systemPrompt,
+            reasoning: settings.reasoningConfiguration
+        )
+
+        return Self.normalizedPlannerResponse(rawResponse)
     }
 
     func analyze(
@@ -41,6 +76,14 @@ final class AIAnalysisPipeline {
         )
         let reasoningConfiguration = settings.reasoningConfiguration
 
+        try await capture.ensureRunning(for: captureTarget.displayID)
+        let initialFrame = try await capture.latestFrame(
+            for: captureTarget.displayID,
+            maxAge: 0.5,
+            waitUpTo: 1.0
+        )
+        let frameTimestamp = ISO8601DateFormatter().string(from: initialFrame.capturedAt)
+
         if let debugSession {
             print("[OpenHalo] Debug artifacts will be saved to \(debugSession.rootURL.path)")
             debugSession.writeText(
@@ -54,13 +97,16 @@ final class AIAnalysisPipeline {
                 Structured output mode: json_schema with json_object fallback
                 Target display ID: \(captureTarget.displayID)
                 Screen frame: \(NSStringFromRect(captureTarget.screen.frame))
+                Initial frame sequence: \(initialFrame.sequence)
+                Initial frame capturedAt: \(frameTimestamp)
                 """,
                 named: "00_run_context.txt"
             )
         }
 
         // 1. Capture screenshot from the same display we will later overlay on
-        let screenshot = try await capture.captureDisplay(displayID: captureTarget.displayID)
+        let screenshot = initialFrame.image
+        debugSession?.appendLine("Initial frame sequence=\(initialFrame.sequence) capturedAt=\(frameTimestamp)")
         debugSession?.writeImage(screenshot, named: "01_initial_capture.png")
 
         // 2. Get screen dimensions for coordinate mapping
@@ -128,6 +174,7 @@ final class AIAnalysisPipeline {
         let aiResponse = await refineHighlightsIfNeeded(
             initialResponse,
             captureTarget: captureTarget,
+            initialFrame: initialFrame,
             screenshotSize: screenshotSize,
             query: query,
             settings: settings,
@@ -173,6 +220,7 @@ final class AIAnalysisPipeline {
     private func refineHighlightsIfNeeded(
         _ response: AIAnalysisResponse,
         captureTarget: CaptureTarget,
+        initialFrame: CapturedFrame,
         screenshotSize: CGSize,
         query: String,
         settings: AppSettings,
@@ -263,6 +311,7 @@ final class AIAnalysisPipeline {
             )
         )
 
+        var currentFrame = initialFrame
         for pass in 1...maximumRefinementPasses {
             do {
                 try await Task.sleep(nanoseconds: visibleRefinementDelayNanoseconds)
@@ -270,14 +319,31 @@ final class AIAnalysisPipeline {
                 print("[OpenHalo] Refinement sleep interrupted on pass \(pass)")
             }
 
-            let currentScreenshot: CGImage
+            let nextFrame: CapturedFrame?
             do {
-                currentScreenshot = try await capture.captureDisplay(displayID: captureTarget.displayID)
+                nextFrame = try await capture.nextFrame(
+                    for: captureTarget.displayID,
+                    after: currentFrame.sequence,
+                    waitUpTo: 0.5
+                )
             } catch {
-                print("[OpenHalo] Failed to recapture display for refinement pass \(pass): \(error.localizedDescription)")
-                debugSession?.appendLine("Pass \(pass): recapture failed - \(error.localizedDescription)")
+                print("[OpenHalo] Failed to read next frame for refinement pass \(pass): \(error.localizedDescription)")
+                debugSession?.appendLine("Pass \(pass): next frame read failed - \(error.localizedDescription)")
                 break
             }
+
+            guard let nextFrame else {
+                debugSession?.appendLine(
+                    "Pass \(pass): no newer frame arrived within 0.5s after frame sequence \(currentFrame.sequence); stopping refinement."
+                )
+                break
+            }
+
+            currentFrame = nextFrame
+            let currentScreenshot = currentFrame.image
+            debugSession?.appendLine(
+                "Pass \(pass): using frame sequence \(currentFrame.sequence) capturedAt=\(ISO8601DateFormatter().string(from: currentFrame.capturedAt))"
+            )
             debugSession?.writeImage(
                 currentScreenshot,
                 named: String(format: "%02d_refinement_capture.png", pass)
@@ -1537,6 +1603,53 @@ final class AIAnalysisPipeline {
         """
     }
 
+    static func buildPlannerPrompt(imageWidth: Int, imageHeight: Int) -> String {
+        """
+        You are OpenHalo's intent planner for a macOS screen assistant.
+        Screenshot size: \(imageWidth)x\(imageHeight).
+
+        Your job is only to determine what the user is trying to accomplish.
+        Do not produce guide steps, coordinates, or highlights.
+        Use both the user's text and the current screen to reduce ambiguity.
+
+        Output:
+        - Return valid JSON only.
+        - Follow the provided schema exactly.
+        - Status must be either ready or need_clarification.
+        - If the user intent is resolved and converged, return ready.
+        - If multiple plausible goals remain, return need_clarification.
+
+        When status is ready:
+        - resolved_intent must be a single canonical user goal sentence.
+        - reason must briefly explain why the goal is clear.
+
+        When status is need_clarification:
+        - tentative_intent must be your best current guess.
+        - ambiguity_reason must briefly explain what is still unclear.
+        - options must contain exactly three mutually exclusive goal options.
+        - Phrase options as end-user goals, not implementation steps.
+
+        Rules:
+        - Never guess when the intent is not converged.
+        - Do not output guide instructions such as click, press, open menu, or use shortcut steps.
+        - Do not emit highlights, boxes, coordinates, or UI labels as the answer.
+        - Prefer intent statements like "Open Chrome settings" or "Close the current browser tab".
+        - Avoid implementation statements like "Click the top-left red button" or "Press Command-comma".
+        - Treat the current screenshot as required evidence, not as optional decoration.
+        - If the screenshot makes one interpretation clearly dominant, return ready instead of need_clarification.
+        - Requests about a visible tab, page, window, button, or icon on the current screenshot should usually resolve to ready when only one reasonable goal fits what is on screen.
+        - Use need_clarification only when at least two materially different end goals still remain plausible after using the screenshot.
+        - Ignore the OpenHalo assistant window unless the user explicitly asks about OpenHalo itself.
+        - Keep reason and ambiguity_reason short and factual.
+
+        Example ready:
+        {"status":"ready","resolved_intent":"Open Chrome settings","reason":"The request clearly asks for Chrome's settings page.","confidence":0.93}
+
+        Example need_clarification:
+        {"status":"need_clarification","tentative_intent":"Close something in Chrome","ambiguity_reason":"It is unclear whether the user wants to close the tab, the window, or the app.","options":["Close the current Chrome tab","Close the current Chrome window","Quit Chrome completely"],"confidence":0.46}
+        """
+    }
+
     static func buildRefinementPrompt() -> String {
         """
         You refine a UI highlight for OpenHalo.
@@ -1608,6 +1721,36 @@ final class AIAnalysisPipeline {
         Example relocalize:
         {"status":"relocalize","active_candidate_description":"browser extension icon in the toolbar","active_candidate_assessment":"The active box is in the wrong toolbar region and does not contain the requested target.","best_candidate_id":"c1","best_candidate_score":82,"best_candidate_note":"Candidate c1 is still the best current fallback, but a fresh global search is needed.","reason":"Current visible candidates are all in the wrong functional area; restart from the full screen.","confidence":0.74}
         """
+    }
+
+    nonisolated static func buildPlannerUserPrompt(
+        query: String,
+        context: PlannerConversationContext?
+    ) -> String {
+        var lines: [String] = [
+            "Latest user input: \(query)"
+        ]
+
+        if let context {
+            lines.append("Original request: \(context.originalQuery)")
+            lines.append("Clarification round: \(context.clarificationRound)")
+            if let tentativeIntent = context.previousTentativeIntent {
+                lines.append("Previous tentative intent: \(tentativeIntent)")
+            }
+            if let ambiguityReason = context.previousAmbiguityReason {
+                lines.append("Previous ambiguity: \(ambiguityReason)")
+            }
+            if !context.previousOptions.isEmpty {
+                lines.append("Previous planner options:")
+                for (index, option) in context.previousOptions.enumerated() {
+                    lines.append("\(index + 1). \(option)")
+                }
+                lines.append("4. None of the above; user will describe the goal in their own words.")
+            }
+        }
+
+        lines.append("Return only the user's intended goal, not guide steps.")
+        return lines.joined(separator: "\n")
     }
 
     nonisolated static func buildRefinementUserPrompt(
@@ -1825,6 +1968,58 @@ final class AIAnalysisPipeline {
             nextAction: sanitizedNextAction,
             steps: normalizedSteps,
             highlights: normalizedHighlights
+        )
+    }
+
+    nonisolated static func normalizedPlannerResponse(
+        _ response: AIIntentPlannerResponse
+    ) -> AIIntentPlannerResponse {
+        let resolvedIntent = sanitizeOptionalText(
+            response.resolvedIntent,
+            maxSentences: 1,
+            maxCharacters: 140
+        )
+        let reason = sanitizeOptionalText(
+            response.reason,
+            maxSentences: 2,
+            maxCharacters: 160
+        )
+        let tentativeIntent = sanitizeOptionalText(
+            response.tentativeIntent,
+            maxSentences: 1,
+            maxCharacters: 140
+        )
+        let ambiguityReason = sanitizeOptionalText(
+            response.ambiguityReason,
+            maxSentences: 2,
+            maxCharacters: 180
+        )
+        var seen = Set<String>()
+        let options = response.options
+            .map {
+                sanitizeText(
+                    $0,
+                    maxSentences: 1,
+                    maxCharacters: 120
+                )
+            }
+            .filter { !$0.isEmpty }
+            .filter { option in
+                let key = option.lowercased()
+                guard !seen.contains(key) else { return false }
+                seen.insert(key)
+                return true
+            }
+            .prefix(3)
+
+        return AIIntentPlannerResponse(
+            status: response.status,
+            resolvedIntent: resolvedIntent,
+            reason: reason,
+            tentativeIntent: tentativeIntent,
+            ambiguityReason: ambiguityReason,
+            options: Array(options),
+            confidence: min(max(response.confidence, 0.0), 1.0)
         )
     }
 
@@ -2052,6 +2247,14 @@ struct AnalysisResult {
     let responseText: String
     let highlights: [HighlightRegion]
     let targetScreen: NSScreen
+}
+
+struct PlannerConversationContext {
+    let originalQuery: String
+    let clarificationRound: Int
+    let previousTentativeIntent: String?
+    let previousAmbiguityReason: String?
+    let previousOptions: [String]
 }
 
 private struct HighlightRefinementResult {

@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overshoot Runtime Probe</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f4ee;
+        --panel: #fffdf8;
+        --ink: #1e1f1c;
+        --muted: #6a6d63;
+        --accent: #0b7a75;
+        --accent-2: #d96f32;
+        --border: #d9d3c5;
+        --ok: #146c2e;
+        --bad: #9b2226;
+        font-family: "SF Mono", "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top left, rgba(217, 111, 50, 0.12), transparent 32%),
+          linear-gradient(180deg, #faf7f1, var(--bg));
+        color: var(--ink);
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 420px minmax(480px, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 12px 34px rgba(31, 35, 28, 0.08);
+      }
+
+      .controls {
+        padding: 18px;
+        position: sticky;
+        top: 24px;
+      }
+
+      .controls h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      .controls p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      label {
+        display: block;
+        margin: 14px 0 6px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        font: inherit;
+        color: inherit;
+        background: #fff;
+      }
+
+      textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      button.secondary {
+        background: #f3efe5;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #f5f1e8;
+        color: var(--muted);
+      }
+
+      .status.ok {
+        color: var(--ok);
+      }
+
+      .status.bad {
+        color: var(--bad);
+      }
+
+      .output {
+        padding: 18px;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .metric {
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .metric h2 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .metric pre,
+      .log {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .log-block {
+        margin-top: 16px;
+      }
+
+      .log-block h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      video {
+        width: 100%;
+        max-height: 260px;
+        background: #0f1110;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel controls">
+        <h1>Overshoot Runtime Probe</h1>
+        <p>
+          Starts the public Overshoot JS SDK in a browser, logs request flow,
+          media settings, result cadence, and visible WebRTC stats.
+        </p>
+
+        <label for="apiKey">API Key</label>
+        <input id="apiKey" type="password" autocomplete="off" placeholder="ovs_..." />
+
+        <div class="row">
+          <div>
+            <label for="sourceType">Source</label>
+            <select id="sourceType">
+              <option value="screen" selected>screen</option>
+              <option value="camera">camera</option>
+            </select>
+          </div>
+          <div>
+            <label for="mode">Mode</label>
+            <select id="mode">
+              <option value="frame" selected>frame</option>
+              <option value="clip">clip</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="model">Model</label>
+            <input id="model" type="text" value="Qwen/Qwen3-VL-8B-Instruct" />
+          </div>
+          <div>
+            <label for="backend">Backend</label>
+            <select id="backend">
+              <option value="overshoot" selected>overshoot</option>
+              <option value="gemini">gemini</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="frameInterval">Frame Interval (s)</label>
+            <input id="frameInterval" type="number" min="0.1" step="0.1" value="0.5" />
+          </div>
+          <div>
+            <label for="targetFps">Clip Target FPS</label>
+            <input id="targetFps" type="number" min="1" step="1" value="6" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="clipLength">Clip Length (s)</label>
+            <input id="clipLength" type="number" min="0.1" step="0.1" value="0.5" />
+          </div>
+          <div>
+            <label for="delaySeconds">Delay (s)</label>
+            <input id="delaySeconds" type="number" min="0" step="0.1" value="0.5" />
+          </div>
+        </div>
+
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt">Read any visible text on the shared screen. Return a short plain-English summary.</textarea>
+
+        <div class="actions">
+          <button id="startButton" class="primary">Start Probe</button>
+          <button id="stopButton" class="secondary">Stop Probe</button>
+        </div>
+
+        <div id="status" class="status">Idle</div>
+
+        <video id="preview" autoplay muted playsinline></video>
+      </section>
+
+      <section class="panel output">
+        <div class="metrics">
+          <article class="metric">
+            <h2>Session</h2>
+            <pre id="sessionInfo">No stream</pre>
+          </article>
+          <article class="metric">
+            <h2>Steady Track</h2>
+            <pre id="steadyTrackInfo">N/A</pre>
+          </article>
+          <article class="metric">
+            <h2>Raw Screen Track</h2>
+            <pre id="rawTrackInfo">N/A</pre>
+          </article>
+          <article class="metric">
+            <h2>WebRTC Stats</h2>
+            <pre id="webrtcInfo">N/A</pre>
+          </article>
+        </div>
+
+        <div class="log-block">
+          <h2>Recent Results</h2>
+          <pre id="resultLog" class="log">No results yet</pre>
+        </div>
+
+        <div class="log-block">
+          <h2>Network / Lifecycle Log</h2>
+          <pre id="eventLog" class="log">No events yet</pre>
+        </div>
+      </section>
+    </main>
+
+    <script type="module">
+      const OriginalFetch = window.fetch.bind(window);
+      const OriginalWebSocket = window.WebSocket;
+      const OriginalRTCPeerConnection = window.RTCPeerConnection;
+      const OriginalGetDisplayMedia = navigator.mediaDevices?.getDisplayMedia?.bind(
+        navigator.mediaDevices
+      );
+
+      const state = {
+        vision: null,
+        lastResultAt: null,
+        peerStatsIntervalId: null,
+        sdkLoaded: false,
+        RealtimeVision: null,
+        rawScreenStream: null,
+        rawTrackSettings: null,
+        peerConnections: [],
+        events: [],
+        results: [],
+        requests: [],
+      };
+
+      const ui = {
+        apiKey: document.getElementById("apiKey"),
+        sourceType: document.getElementById("sourceType"),
+        mode: document.getElementById("mode"),
+        model: document.getElementById("model"),
+        backend: document.getElementById("backend"),
+        frameInterval: document.getElementById("frameInterval"),
+        targetFps: document.getElementById("targetFps"),
+        clipLength: document.getElementById("clipLength"),
+        delaySeconds: document.getElementById("delaySeconds"),
+        prompt: document.getElementById("prompt"),
+        preview: document.getElementById("preview"),
+        status: document.getElementById("status"),
+        sessionInfo: document.getElementById("sessionInfo"),
+        steadyTrackInfo: document.getElementById("steadyTrackInfo"),
+        rawTrackInfo: document.getElementById("rawTrackInfo"),
+        webrtcInfo: document.getElementById("webrtcInfo"),
+        resultLog: document.getElementById("resultLog"),
+        eventLog: document.getElementById("eventLog"),
+        startButton: document.getElementById("startButton"),
+        stopButton: document.getElementById("stopButton"),
+      };
+
+      function safeJson(value) {
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch (error) {
+          return String(value);
+        }
+      }
+
+      function redact(value) {
+        if (typeof value !== "string") return value;
+        return value.replace(/ovs_[a-zA-Z0-9]+/g, (token) => {
+          return token.slice(0, 8) + "…" + token.slice(-4);
+        });
+      }
+
+      function pushEvent(label, payload = null) {
+        const entry = {
+          at: new Date().toISOString(),
+          label,
+          payload,
+        };
+        state.events.unshift(entry);
+        state.events = state.events.slice(0, 80);
+        ui.eventLog.textContent = state.events
+          .map((item) => {
+            const header = `[${item.at}] ${item.label}`;
+            return item.payload == null ? header : `${header}\n${redact(safeJson(item.payload))}`;
+          })
+          .join("\n\n");
+      }
+
+      function pushResult(result, intervalMs) {
+        const entry = {
+          at: new Date().toISOString(),
+          interval_ms: intervalMs,
+          result,
+        };
+        state.results.unshift(entry);
+        state.results = state.results.slice(0, 20);
+        ui.resultLog.textContent = state.results
+          .map((item) => {
+            return [
+              `[${item.at}] interval=${item.interval_ms ?? "first"}ms latency=${item.result.total_latency_ms}ms inference=${item.result.inference_latency_ms}ms ok=${item.result.ok}`,
+              `finish_reason=${item.result.finish_reason} stream_id=${item.result.stream_id}`,
+              redact(item.result.result),
+            ].join("\n");
+          })
+          .join("\n\n");
+      }
+
+      function setStatus(text, kind = "") {
+        ui.status.textContent = text;
+        ui.status.className = `status ${kind}`.trim();
+      }
+
+      function updateTrackInfo() {
+        const stream = state.vision?.getMediaStream?.() ?? null;
+        const track = stream?.getVideoTracks?.()[0] ?? null;
+        const settings = track?.getSettings?.() ?? null;
+        ui.steadyTrackInfo.textContent = settings ? safeJson(settings) : "N/A";
+        ui.rawTrackInfo.textContent = state.rawTrackSettings
+          ? safeJson(state.rawTrackSettings)
+          : "N/A";
+        if (stream) {
+          ui.preview.srcObject = stream;
+        } else {
+          ui.preview.srcObject = null;
+        }
+        ui.sessionInfo.textContent = safeJson({
+          active: state.vision?.isActive?.() ?? false,
+          stream_id: state.vision?.getStreamId?.() ?? null,
+          source: ui.sourceType.value,
+          mode: ui.mode.value,
+          request_count: state.requests.length,
+          result_count: state.results.length,
+        });
+      }
+
+      async function samplePeerStats() {
+        if (state.peerConnections.length === 0) {
+          ui.webrtcInfo.textContent = "No RTCPeerConnection instances observed";
+          return;
+        }
+
+        const summaries = [];
+        for (const [index, pc] of state.peerConnections.entries()) {
+          try {
+            const stats = await pc.getStats();
+            for (const report of stats.values()) {
+              if (report.type === "outbound-rtp" && report.kind === "video") {
+                summaries.push({
+                  pc_index: index,
+                  type: report.type,
+                  kind: report.kind,
+                  bytesSent: report.bytesSent,
+                  framesSent: report.framesSent,
+                  frameWidth: report.frameWidth,
+                  frameHeight: report.frameHeight,
+                  qualityLimitationReason: report.qualityLimitationReason,
+                  rid: report.rid ?? null,
+                });
+              }
+            }
+          } catch (error) {
+            summaries.push({
+              pc_index: index,
+              error: String(error),
+            });
+          }
+        }
+        ui.webrtcInfo.textContent = summaries.length ? safeJson(summaries) : "No outbound video RTP stats yet";
+      }
+
+      function startPeerSampling() {
+        stopPeerSampling();
+        state.peerStatsIntervalId = window.setInterval(() => {
+          samplePeerStats().catch((error) => {
+            pushEvent("peer-stats-error", { message: String(error) });
+          });
+        }, 1000);
+      }
+
+      function stopPeerSampling() {
+        if (state.peerStatsIntervalId != null) {
+          window.clearInterval(state.peerStatsIntervalId);
+          state.peerStatsIntervalId = null;
+        }
+      }
+
+      function installInstrumentation() {
+        if (OriginalGetDisplayMedia) {
+          navigator.mediaDevices.getDisplayMedia = async (...args) => {
+            pushEvent("getDisplayMedia-called", { args });
+            const stream = await OriginalGetDisplayMedia(...args);
+            state.rawScreenStream = stream;
+            const track = stream.getVideoTracks()[0] ?? null;
+            state.rawTrackSettings = track?.getSettings?.() ?? null;
+            pushEvent("getDisplayMedia-resolved", {
+              rawTrackSettings: state.rawTrackSettings,
+            });
+            updateTrackInfo();
+            return stream;
+          };
+        }
+
+        window.fetch = async (input, init = undefined) => {
+          const url = typeof input === "string" ? input : input.url;
+          const method = init?.method ?? "GET";
+          const body = init?.body ?? null;
+          const response = await OriginalFetch(input, init);
+          if (url.includes("overshoot.ai") || url.includes("/streams")) {
+            let payload = null;
+            try {
+              payload = body ? JSON.parse(body) : null;
+            } catch {
+              payload = body;
+            }
+            const responseClone = response.clone();
+            let responseJson = null;
+            try {
+              responseJson = await responseClone.json();
+            } catch {
+              responseJson = null;
+            }
+            const entry = {
+              method,
+              url,
+              status: response.status,
+              request: payload,
+              response: responseJson,
+            };
+            state.requests.unshift(entry);
+            state.requests = state.requests.slice(0, 30);
+            pushEvent("fetch", entry);
+            updateTrackInfo();
+          }
+          return response;
+        };
+
+        class ProbeWebSocket extends OriginalWebSocket {
+          constructor(url, protocols) {
+            super(url, protocols);
+            pushEvent("ws-created", { url });
+            this.addEventListener("open", () => pushEvent("ws-open", { url }));
+            this.addEventListener("close", (event) => {
+              pushEvent("ws-close", {
+                url,
+                code: event.code,
+                reason: event.reason,
+                wasClean: event.wasClean,
+              });
+            });
+            this.addEventListener("error", () => pushEvent("ws-error", { url }));
+          }
+        }
+        window.WebSocket = ProbeWebSocket;
+
+        class ProbeRTCPeerConnection extends OriginalRTCPeerConnection {
+          constructor(...args) {
+            super(...args);
+            state.peerConnections.push(this);
+            pushEvent("pc-created", { count: state.peerConnections.length });
+            this.addEventListener("connectionstatechange", () => {
+              pushEvent("pc-state", {
+                connectionState: this.connectionState,
+                iceConnectionState: this.iceConnectionState,
+              });
+            });
+          }
+        }
+        window.RTCPeerConnection = ProbeRTCPeerConnection;
+      }
+
+      installInstrumentation();
+
+      async function ensureSdkLoaded() {
+        if (state.sdkLoaded) return;
+        const module = await import("https://cdn.jsdelivr.net/npm/overshoot@2.0.0-alpha.7/+esm");
+        state.RealtimeVision = module.RealtimeVision;
+        state.sdkLoaded = true;
+        pushEvent("sdk-loaded", { package: "overshoot@2.0.0-alpha.7" });
+      }
+
+      async function startProbe() {
+        if (state.vision?.isActive?.()) {
+          setStatus("Probe already running", "ok");
+          return;
+        }
+
+        const apiKey = ui.apiKey.value.trim();
+        if (!apiKey) {
+          setStatus("API key required", "bad");
+          return;
+        }
+
+        state.events = [];
+        state.results = [];
+        state.requests = [];
+        state.peerConnections = [];
+        state.rawScreenStream = null;
+        state.rawTrackSettings = null;
+        ui.resultLog.textContent = "No results yet";
+        ui.eventLog.textContent = "No events yet";
+        ui.webrtcInfo.textContent = "N/A";
+
+        try {
+          setStatus("Loading SDK…");
+          await ensureSdkLoaded();
+
+          const sourceType = ui.sourceType.value;
+          const mode = ui.mode.value;
+          const prompt = ui.prompt.value.trim();
+
+          const config = {
+            apiKey,
+            source:
+              sourceType === "camera"
+                ? { type: "camera", cameraFacing: "environment" }
+                : { type: "screen" },
+            model: ui.model.value.trim(),
+            backend: ui.backend.value,
+            prompt,
+            mode,
+            debug: true,
+            onResult: (result) => {
+              const now = performance.now();
+              const intervalMs =
+                state.lastResultAt == null ? null : Math.round(now - state.lastResultAt);
+              state.lastResultAt = now;
+              pushResult(result, intervalMs);
+              updateTrackInfo();
+            },
+            onError: (error) => {
+              pushEvent("sdk-error", { message: String(error?.message ?? error) });
+              setStatus(`Error: ${error?.message ?? error}`, "bad");
+            },
+          };
+
+          if (mode === "frame") {
+            config.frameProcessing = {
+              interval_seconds: Number(ui.frameInterval.value),
+            };
+          } else {
+            config.clipProcessing = {
+              target_fps: Number(ui.targetFps.value),
+              clip_length_seconds: Number(ui.clipLength.value),
+              delay_seconds: Number(ui.delaySeconds.value),
+            };
+          }
+
+          pushEvent("probe-config", {
+            ...config,
+            apiKey: "[redacted]",
+          });
+
+          state.vision = new state.RealtimeVision(config);
+          setStatus("Starting stream…");
+          await state.vision.start();
+          updateTrackInfo();
+          await samplePeerStats();
+          startPeerSampling();
+          setStatus("Running", "ok");
+        } catch (error) {
+          pushEvent("start-failed", { message: String(error?.message ?? error) });
+          setStatus(`Start failed: ${error?.message ?? error}`, "bad");
+          updateTrackInfo();
+        }
+      }
+
+      async function stopProbe() {
+        stopPeerSampling();
+        if (state.vision) {
+          try {
+            await state.vision.stop();
+            pushEvent("probe-stopped");
+          } catch (error) {
+            pushEvent("stop-failed", { message: String(error?.message ?? error) });
+          }
+        }
+        state.vision = null;
+        state.lastResultAt = null;
+        updateTrackInfo();
+        setStatus("Idle");
+      }
+
+      ui.startButton.addEventListener("click", () => {
+        startProbe();
+      });
+      ui.stopButton.addEventListener("click", () => {
+        stopProbe();
+      });
+
+      updateTrackInfo();
+      window.__overshootProbe = {
+        state,
+        startProbe,
+        stopProbe,
+        samplePeerStats,
+      };
+    </script>
+  </body>
+</html>

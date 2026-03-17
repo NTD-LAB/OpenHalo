@@ -36,6 +36,31 @@ actor OpenRouterClient {
         )
     }
 
+    func planIntent(
+        base64Image: String,
+        userPrompt: String,
+        model: String,
+        apiKey: String,
+        systemPrompt: String,
+        reasoning: ReasoningConfiguration?,
+        rawContentHandler: (@Sendable (String) -> Void)? = nil
+    ) async throws -> AIIntentPlannerResponse {
+        try await sendStructuredJSONRequest(
+            model: model,
+            apiKey: apiKey,
+            systemPrompt: systemPrompt,
+            userParts: [
+                .text(userPrompt),
+                .imageURL("data:image/jpeg;base64,\(base64Image)"),
+            ],
+            maxTokens: 384,
+            reasoning: reasoning,
+            structuredResponseFormat: Self.plannerResponseFormat,
+            responseType: AIIntentPlannerResponse.self,
+            rawContentHandler: rawContentHandler
+        )
+    }
+
     func refineHighlight(
         base64Images: [String],
         userPrompt: String,
@@ -295,6 +320,39 @@ actor OpenRouterClient {
                 "confidence": .number(description: "Confidence score between 0 and 1.")
             ],
             required: ["status", "active_candidate_description", "active_candidate_assessment", "best_candidate_id", "best_candidate_score", "best_candidate_note", "reason", "confidence"]
+        )
+    )
+
+    private static let plannerResponseFormat = ResponseFormat.jsonSchema(
+        name: "openhalo_intent_planner_response",
+        schema: .object(
+            description: "Structured response for intent planning before guide generation.",
+            properties: [
+                "status": .string(
+                    description: "Whether the user intent is resolved or needs clarification.",
+                    enumValues: ["ready", "need_clarification"]
+                ),
+                "resolved_intent": .string(
+                    description: "One-sentence canonical user goal when the intent is resolved."
+                ),
+                "reason": .string(
+                    description: "Short explanation for why the intent is considered resolved."
+                ),
+                "tentative_intent": .string(
+                    description: "Best current guess of the user's intended goal when clarification is needed."
+                ),
+                "ambiguity_reason": .string(
+                    description: "Short explanation of what remains unclear."
+                ),
+                "options": .array(
+                    description: "Exactly three mutually exclusive user-goal options when clarification is needed.",
+                    items: .string(description: "One possible user goal.")
+                ),
+                "confidence": .number(
+                    description: "Confidence score between 0 and 1."
+                )
+            ],
+            required: ["status", "confidence"]
         )
     )
 }

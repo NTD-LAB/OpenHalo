@@ -25,6 +25,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.showChatPanel()
         }
+
+        if let displayID = mainDisplayID() {
+            let screenCaptureService = appState.screenCaptureService
+            Task.detached(priority: .background) {
+                guard await screenCaptureService.checkPermission() else {
+                    return
+                }
+
+                do {
+                    try await screenCaptureService.ensureRunning(for: displayID)
+                } catch {
+                    print("[OpenHalo] Failed to prewarm screen stream: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     func toggleChatPanel() {
@@ -142,5 +157,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         chatPanel = panel
+    }
+
+    private func mainDisplayID() -> CGDirectDisplayID? {
+        let targetScreen = NSScreen.main ?? NSScreen.screens.first
+        guard
+            let screen = targetScreen,
+            let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+        else {
+            return nil
+        }
+
+        return CGDirectDisplayID(screenNumber.uint32Value)
     }
 }

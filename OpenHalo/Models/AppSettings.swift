@@ -27,7 +27,7 @@ struct AppSettings: Codable {
     static let defaultReasoningEnabled = false
     static let defaultReasoningEffort = "minimal"
 
-    static let availableModelOptions = openAIModelOptions + googleModelOptions
+    static let availableModelOptions = openAIModelOptions + anthropicModelOptions + googleModelOptions
     static let availableModels = availableModelOptions.map(\.id)
 
     static let availableReasoningEfforts = [
@@ -178,6 +178,11 @@ struct AppSettings: Codable {
         ModelOption(id: "openai/gpt-5.2-pro", displayName: "GPT-5.2 Pro", provider: "OpenAI", supportsReasoning: true),
         ModelOption(id: "openai/gpt-5.4", displayName: "GPT-5.4", provider: "OpenAI", supportsReasoning: true),
         ModelOption(id: "openai/gpt-5.4-pro", displayName: "GPT-5.4 Pro", provider: "OpenAI", supportsReasoning: true),
+    ]
+
+    private static let anthropicModelOptions = [
+        ModelOption(id: "anthropic/claude-sonnet-4.6", displayName: "Claude Sonnet 4.6", provider: "Anthropic", supportsReasoning: false),
+        ModelOption(id: "anthropic/claude-opus-4.6", displayName: "Claude Opus 4.6", provider: "Anthropic", supportsReasoning: false),
     ]
 
     private static let googleModelOptions = [

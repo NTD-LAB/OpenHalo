@@ -536,6 +536,93 @@ struct AIAnalysisResponse: Decodable {
     }
 }
 
+struct AIIntentPlannerResponse: Decodable {
+    let status: Status
+    let resolvedIntent: String?
+    let reason: String?
+    let tentativeIntent: String?
+    let ambiguityReason: String?
+    let options: [String]
+    let confidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case resolvedIntent = "resolved_intent"
+        case reason
+        case tentativeIntent = "tentative_intent"
+        case ambiguityReason = "ambiguity_reason"
+        case options
+        case confidence
+    }
+
+    enum Status: String, Decodable {
+        case ready
+        case needClarification = "need_clarification"
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            let rawValue = try container.decode(String.self)
+                .lowercased()
+                .replacingOccurrences(of: "-", with: "_")
+                .replacingOccurrences(of: " ", with: "_")
+
+            guard let status = Status(rawValue: rawValue) else {
+                throw DecodingError.dataCorruptedError(
+                    in: container,
+                    debugDescription: "Unsupported planner status: \(rawValue)"
+                )
+            }
+
+            self = status
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.status = try container.decode(Status.self, forKey: .status)
+        self.resolvedIntent = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .resolvedIntent
+        )
+        self.reason = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .reason
+        )
+        self.tentativeIntent = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .tentativeIntent
+        )
+        self.ambiguityReason = try? FlexibleDecoding.decodeString(
+            from: container,
+            forKey: .ambiguityReason
+        )
+        self.options = (try? container.decodeIfPresent([String].self, forKey: .options)) ?? []
+        self.confidence = try FlexibleDecoding.decodeDouble(
+            from: container,
+            forKey: .confidence,
+            default: 0.0
+        )
+    }
+
+    init(
+        status: Status,
+        resolvedIntent: String? = nil,
+        reason: String? = nil,
+        tentativeIntent: String? = nil,
+        ambiguityReason: String? = nil,
+        options: [String] = [],
+        confidence: Double
+    ) {
+        self.status = status
+        self.resolvedIntent = resolvedIntent
+        self.reason = reason
+        self.tentativeIntent = tentativeIntent
+        self.ambiguityReason = ambiguityReason
+        self.options = options
+        self.confidence = confidence
+    }
+}
+
 struct AIHighlightRefinementResponse: Decodable {
     let status: Status
     let activeCandidateDescription: String?

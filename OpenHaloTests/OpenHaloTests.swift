@@ -2,6 +2,53 @@ import XCTest
 @testable import OpenHalo
 
 final class OpenHaloTests: XCTestCase {
+    func testAIIntentPlannerResponseDecodesReadyState() throws {
+        let input = """
+        {
+          "status": "ready",
+          "resolved_intent": "Open Chrome settings",
+          "reason": "The request explicitly asks for Chrome settings.",
+          "confidence": 0.92
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            AIIntentPlannerResponse.self,
+            from: Data(input.utf8)
+        )
+
+        XCTAssertEqual(response.status, .ready)
+        XCTAssertEqual(response.resolvedIntent, "Open Chrome settings")
+        XCTAssertEqual(response.reason, "The request explicitly asks for Chrome settings.")
+        XCTAssertEqual(response.confidence, 0.92, accuracy: 0.0001)
+    }
+
+    func testAIIntentPlannerResponseDecodesClarificationState() throws {
+        let input = """
+        {
+          "status": "need_clarification",
+          "tentative_intent": "Close something in Chrome",
+          "ambiguity_reason": "It is unclear whether the user wants to close a tab, a window, or the app.",
+          "options": [
+            "Close the current Chrome tab",
+            "Close the current Chrome window",
+            "Quit Chrome completely"
+          ],
+          "confidence": 0.41
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            AIIntentPlannerResponse.self,
+            from: Data(input.utf8)
+        )
+
+        XCTAssertEqual(response.status, .needClarification)
+        XCTAssertEqual(response.tentativeIntent, "Close something in Chrome")
+        XCTAssertEqual(response.options.count, 3)
+        XCTAssertEqual(response.options[1], "Close the current Chrome window")
+    }
+
     func testJSONSchemaParserStripsMarkdownFences() throws {
         let input = """
         ```json
@@ -312,6 +359,37 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertEqual(expanded.y + (expanded.height / 2), box.y + (box.height / 2), accuracy: 0.001)
     }
 
+    @MainActor
+    func testPlannerClarificationMessageIncludesFourthOption() {
+        let message = AppState.plannerClarificationMessage(
+            tentativeIntent: "Close something in Chrome",
+            ambiguityReason: "It is unclear what should be closed.",
+            options: [
+                "Close the current Chrome tab",
+                "Close the current Chrome window",
+                "Quit Chrome completely"
+            ]
+        )
+
+        XCTAssertTrue(message.contains("当前最可能的理解"))
+        XCTAssertTrue(message.contains("1. Close the current Chrome tab"))
+        XCTAssertTrue(message.contains("4. 以上都不是，请你自己描述"))
+    }
+
+    @MainActor
+    func testParsePlannerReplyUnderstandsOptionsAndFreeform() {
+        XCTAssertEqual(AppState.parsePlannerReply("1"), .option(1))
+        XCTAssertEqual(AppState.parsePlannerReply("３"), .option(3))
+        XCTAssertEqual(AppState.parsePlannerReply("4"), .option(4))
+
+        switch AppState.parsePlannerReply("4 我想关闭当前标签页") {
+        case .freeform(let text):
+            XCTAssertEqual(text, "我想关闭当前标签页")
+        default:
+            XCTFail("Expected freeform planner reply")
+        }
+    }
+
     func testJSONSchemaParserDecodesRefinementAcceptResponse() throws {
         let input = """
         ```json
@@ -607,6 +685,83 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertTrue(prompt.contains("next_action must be an object"))
         XCTAssertTrue(prompt.contains("Example valid response"))
         XCTAssertTrue(prompt.contains("Example invalid response shape"))
+    }
+
+    @MainActor
+    func testPlannerPromptSeparatesIntentFromGuide() {
+        let prompt = AIAnalysisPipeline.buildPlannerPrompt(
+            imageWidth: 1376,
+            imageHeight: 1032
+        )
+
+        XCTAssertTrue(prompt.contains("Do not produce guide steps, coordinates, or highlights"))
+        XCTAssertTrue(prompt.contains("Status must be either ready or need_clarification"))
+        XCTAssertTrue(prompt.contains("exactly three mutually exclusive goal options"))
+        XCTAssertTrue(prompt.contains("Treat the current screenshot as required evidence"))
+        XCTAssertTrue(prompt.contains("If the screenshot makes one interpretation clearly dominant, return ready"))
+        XCTAssertTrue(prompt.contains("Open Chrome settings"))
+        XCTAssertTrue(prompt.contains("Click the top-left red button"))
+    }
+
+    @MainActor
+    func testPlannerDirectExecutionFallbackIntentUsesSpecificVisibleTargetQuery() {
+        let response = AIIntentPlannerResponse(
+            status: .needClarification,
+            tentativeIntent: "Open something in Chrome",
+            ambiguityReason: "Unclear target.",
+            options: [],
+            confidence: 0.24
+        )
+
+        let fallback = AppState.plannerDirectExecutionFallbackIntent(
+            plannerQuery: "打开 chrome 里面的 chatgpt 标签页",
+            originalQuery: "找到 chatgpt 的 tab",
+            response: response
+        )
+
+        XCTAssertEqual(fallback, "打开 chrome 里面的 chatgpt 标签页")
+    }
+
+    @MainActor
+    func testPlannerDirectExecutionFallbackIntentRejectsVagueAppLevelRequest() {
+        let response = AIIntentPlannerResponse(
+            status: .needClarification,
+            tentativeIntent: "Close something in Chrome",
+            ambiguityReason: "Unclear target.",
+            options: [],
+            confidence: 0.31
+        )
+
+        let fallback = AppState.plannerDirectExecutionFallbackIntent(
+            plannerQuery: "帮我处理一下 Chrome",
+            originalQuery: "帮我处理一下 Chrome",
+            response: response
+        )
+
+        XCTAssertNil(fallback)
+    }
+
+    func testBuildPlannerUserPromptIncludesConversationContext() {
+        let prompt = AIAnalysisPipeline.buildPlannerUserPrompt(
+            query: "我其实是想关闭当前标签页",
+            context: PlannerConversationContext(
+                originalQuery: "帮我关掉 Chrome",
+                clarificationRound: 1,
+                previousTentativeIntent: "Close something in Chrome",
+                previousAmbiguityReason: "It is unclear whether the user means tab, window, or app.",
+                previousOptions: [
+                    "Close the current Chrome tab",
+                    "Close the current Chrome window",
+                    "Quit Chrome completely"
+                ]
+            )
+        )
+
+        XCTAssertTrue(prompt.contains("Latest user input: 我其实是想关闭当前标签页"))
+        XCTAssertTrue(prompt.contains("Original request: 帮我关掉 Chrome"))
+        XCTAssertTrue(prompt.contains("Clarification round: 1"))
+        XCTAssertTrue(prompt.contains("Previous planner options"))
+        XCTAssertTrue(prompt.contains("4. None of the above"))
     }
 
     @MainActor
@@ -1089,6 +1244,8 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertTrue(AppSettings.availableModels.contains("openai/o4-mini"))
         XCTAssertTrue(AppSettings.availableModels.contains("openai/gpt-5.3-chat"))
         XCTAssertTrue(AppSettings.availableModels.contains("openai/gpt-5"))
+        XCTAssertTrue(AppSettings.availableModels.contains("anthropic/claude-sonnet-4.6"))
+        XCTAssertTrue(AppSettings.availableModels.contains("anthropic/claude-opus-4.6"))
         XCTAssertTrue(AppSettings.availableModels.contains("google/gemini-2.5-flash"))
         XCTAssertTrue(AppSettings.availableModels.contains("google/gemini-2.5-pro"))
         XCTAssertTrue(AppSettings.availableModels.contains("google/gemini-3-flash-preview"))

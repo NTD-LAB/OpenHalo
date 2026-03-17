@@ -30,6 +30,7 @@
 		A970A5FD2BFBE8D0553AA142 /* HighlightRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */; };
 		ADCF0BF1F7AD2F5777177C29 /* HighlightRectangleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20989FE2E0741CD37EAB1FDA /* HighlightRectangleView.swift */; };
 		BACDCA0958B453A10ED2FA82 /* AIRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */; };
+		B1A437022E829F4300AA1001 /* ScreenCaptureServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A437032E829F4300AA1001 /* ScreenCaptureServiceTests.swift */; };
 		BED67728095AB9CA6D785752 /* AnalysisDebugSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */; };
 		DDADACC7E2344DBE6970FA8E /* OverlayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77732294A8B8F9F47086110 /* OverlayContentView.swift */; };
 		F91A907B2B5E9BC046B54E22 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709AF939E737EDFB0CAAC5C1 /* AppState.swift */; };
@@ -68,6 +69,7 @@
 		A3FA5CF16B21CDBCF11D73B1 /* OpenHalo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenHalo.entitlements; sourceTree = "<group>"; };
 		A77732294A8B8F9F47086110 /* OverlayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayContentView.swift; sourceTree = "<group>"; };
 		AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisDebugSession.swift; sourceTree = "<group>"; };
+		B1A437032E829F4300AA1001 /* ScreenCaptureServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureServiceTests.swift; sourceTree = "<group>"; };
 		B22F629CDF3FA977FF7349C7 /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
 		B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRegion.swift; sourceTree = "<group>"; };
 		C4FBCA3D25821AEDD6EA9183 /* OpenHaloTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenHaloTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -153,6 +155,7 @@
 			isa = PBXGroup;
 			children = (
 				9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */,
+				B1A437032E829F4300AA1001 /* ScreenCaptureServiceTests.swift */,
 			);
 			path = OpenHaloTests;
 			sourceTree = "<group>";
@@ -274,6 +277,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0922DE1892637A345AB8BEE0 /* OpenHaloTests.swift in Sources */,
+				B1A437022E829F4300AA1001 /* ScreenCaptureServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

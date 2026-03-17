@@ -16,7 +16,7 @@ struct SettingsView: View {
                 }
                 .onChange(of: appState.settings.selectedModel) { _, _ in saveSettings() }
 
-                Text("Default model: GPT-5.3 Chat. Fast alternatives: GPT-4o Mini, Gemini 2.0 Flash Lite, and Gemini 2.0 Flash. Reasoning is off by default to reduce interactive delay. OpenHalo still prefers strict JSON schema output and falls back to plain JSON mode if a model/provider rejects structured outputs. Vertex-only preview models are intentionally excluded from this picker.")
+                Text("Default model: GPT-5.3 Chat. Fast alternatives: GPT-4o Mini, Claude Sonnet 4.6, Gemini 2.0 Flash Lite, and Gemini 2.0 Flash. Claude Opus 4.6 is also available when you want a heavier Anthropic option. Reasoning is off by default to reduce interactive delay. OpenHalo still prefers strict JSON schema output and falls back to plain JSON mode if a model/provider rejects structured outputs. Vertex-only preview models are intentionally excluded from this picker.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
