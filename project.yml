@@ -45,6 +45,25 @@ targets:
         CODE_SIGN_IDENTITY: Apple Development
         GENERATE_INFOPLIST_FILE: YES
 
+  FramePoolLab:
+    type: application
+    platform: macOS
+    sources:
+      - FramePoolLab
+      - OpenHalo/Services/ScreenCaptureService.swift
+      - OpenHalo/Utilities/CGImageExtensions.swift
+      - OpenHalo/Models/AIRequest.swift
+      - OpenHalo/Models/AIResponse.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openhalo.framepoollab
+        DEVELOPMENT_TEAM: ZBTZQYM487
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: Apple Development
+        GENERATE_INFOPLIST_FILE: YES
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+
 schemes:
   OpenHalo:
     build:
@@ -56,6 +75,19 @@ schemes:
       config: Debug
       targets:
         - OpenHaloTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
+  FramePoolLab:
+    build:
+      targets:
+        FramePoolLab: all
+    run:
+      config: Debug
     profile:
       config: Release
     analyze:

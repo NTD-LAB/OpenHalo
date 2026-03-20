@@ -9,30 +9,38 @@
 /* Begin PBXBuildFile section */
 		08EEAEFE27252830D42EF672 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 806DDC3C923C4CEE9BFB7790 /* Assets.xcassets */; };
 		0922DE1892637A345AB8BEE0 /* OpenHaloTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */; };
-		0F430A9080D57974C8EAF5B9 /* AIResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D93EEE55D87CD22AFCF3D5 /* AIResponse.swift */; };
+		173B4ADCAA0BDB969B537DCB /* FramePoolLabVisionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7521C840C6EC357AB55A67 /* FramePoolLabVisionClient.swift */; };
+		195A651D6B373D00E9F51ED9 /* FramePoolLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA3B42774D1646507A6874AD /* FramePoolLabView.swift */; };
+		19B0E6871B372C76DAB06683 /* FramePoolLabViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E23BC4C6A4DE538FA25B68C /* FramePoolLabViewModel.swift */; };
+		1A1A04C6E77DEC2FB22B5019 /* AIRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = D657CA4C979CF88ABAC983CB /* AIRequest.swift */; };
+		2FF2A7D5460E95D801CE2B39 /* CGImageExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F645419263338029533A4663 /* CGImageExtensions.swift */; };
 		3A231D599E0FF01597DC59F6 /* OpenRouterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F4E61010EC68A57DC9F69B /* OpenRouterClient.swift */; };
-		443CB801E01233F8C6C24C0E /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0842EB8A1F1EA092133F6C67 /* AppSettings.swift */; };
 		4FB393F9F24A56B209C6E4BD /* OpenHaloApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02CF9E9D9F921433628CDF0 /* OpenHaloApp.swift */; };
 		593CDFAB1FAA779CD06C42B5 /* ChatPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE496202D5B71E740D42570 /* ChatPanelView.swift */; };
 		62114AEC3495DC93B69B8E74 /* AnnotatedScreenshotRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418A0605D26A83A82E5055ED /* AnnotatedScreenshotRenderer.swift */; };
 		6BCE30DFC1E5A7008ED11A97 /* CGImageExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F645419263338029533A4663 /* CGImageExtensions.swift */; };
-		73F203C4F78755EA1393D4F1 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D6003E2DA9A0DE75658A15 /* ChatMessage.swift */; };
 		76AD97D3822BE5250D854F70 /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B012D74BDE228EF51B45ED3 /* OverlayWindow.swift */; };
 		7E97E185CC97AAC5BE94856F /* ChatBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22F629CDF3FA977FF7349C7 /* ChatBubbleView.swift */; };
 		7F6AB99C58B1592939F76B8D /* JSONSchemaParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8B4C0154C9EFD63EF64FBD /* JSONSchemaParser.swift */; };
+		82747A0474986D7D90AB56B6 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E217B6F786159140984A8500 /* ChatMessage.swift */; };
+		831F3AC20FC07540CB77C084 /* ScreenCaptureServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5E36F5E89756D0E3571A0FF /* ScreenCaptureServiceTests.swift */; };
 		83333A1CC68DF43C441740DD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1FAA2C4015458E1CF86314 /* SettingsView.swift */; };
+		84D0BAC7202A9E5D2E895CF2 /* AIRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = D657CA4C979CF88ABAC983CB /* AIRequest.swift */; };
 		85E348F8E3B3BBFC8EDCB1CC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D2928644B1C73B5846F585 /* AppDelegate.swift */; };
 		8B8C3B91FF594FD1597C8C77 /* HotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07ABE79904E21F4F35181BCB /* HotkeyService.swift */; };
 		8FF4064801F4D49C535DB345 /* ScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF1848218BFD50167A842D5 /* ScreenGeometry.swift */; };
 		93A780ACD97D5A136782B543 /* ScreenCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52305C1BCCB6B0617E7D34EF /* ScreenCaptureService.swift */; };
 		9A67AFFBC58F7426DE2B7FAD /* OverlayDrawingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615F16BCBF4D6E5924FF1863 /* OverlayDrawingView.swift */; };
 		9D6AED6ACE4280410EC218F7 /* AIAnalysisPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3171CA309DB7F6959D5BFBDD /* AIAnalysisPipeline.swift */; };
-		A970A5FD2BFBE8D0553AA142 /* HighlightRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */; };
+		A0875F5ED9CBB955D298BA07 /* ScreenCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52305C1BCCB6B0617E7D34EF /* ScreenCaptureService.swift */; };
 		ADCF0BF1F7AD2F5777177C29 /* HighlightRectangleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20989FE2E0741CD37EAB1FDA /* HighlightRectangleView.swift */; };
-		BACDCA0958B453A10ED2FA82 /* AIRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */; };
-		B1A437022E829F4300AA1001 /* ScreenCaptureServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A437032E829F4300AA1001 /* ScreenCaptureServiceTests.swift */; };
+		B7B5229282693E0F59F4E640 /* FramePoolLabApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EFE878E0C8268BE183F1026 /* FramePoolLabApp.swift */; };
 		BED67728095AB9CA6D785752 /* AnalysisDebugSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */; };
+		C0B2382ACC47ED06AAD0935C /* HighlightRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4102EB18298A99DC79C2E5 /* HighlightRegion.swift */; };
 		DDADACC7E2344DBE6970FA8E /* OverlayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77732294A8B8F9F47086110 /* OverlayContentView.swift */; };
+		DFA35BC94D0DCBA7B6BFE5AD /* AIResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3F2C44B9B1E0BCE6E0A9C0 /* AIResponse.swift */; };
+		E223667BB4F75CF18184827F /* AIResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3F2C44B9B1E0BCE6E0A9C0 /* AIResponse.swift */; };
+		F5EA3DC2ED264ACBA091376D /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C139F578B2E00D06B11F5BC /* AppSettings.swift */; };
 		F91A907B2B5E9BC046B54E22 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709AF939E737EDFB0CAAC5C1 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,10 +56,10 @@
 
 /* Begin PBXFileReference section */
 		07ABE79904E21F4F35181BCB /* HotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyService.swift; sourceTree = "<group>"; };
-		0842EB8A1F1EA092133F6C67 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		13F4E61010EC68A57DC9F69B /* OpenRouterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClient.swift; sourceTree = "<group>"; };
 		1AE496202D5B71E740D42570 /* ChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPanelView.swift; sourceTree = "<group>"; };
 		20989FE2E0741CD37EAB1FDA /* HighlightRectangleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRectangleView.swift; sourceTree = "<group>"; };
+		233D0A158849AFF00E2AE70D /* FramePoolLab.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FramePoolLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3171CA309DB7F6959D5BFBDD /* AIAnalysisPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisPipeline.swift; sourceTree = "<group>"; };
 		418A0605D26A83A82E5055ED /* AnnotatedScreenshotRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotatedScreenshotRenderer.swift; sourceTree = "<group>"; };
 		4CF1848218BFD50167A842D5 /* ScreenGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenGeometry.swift; sourceTree = "<group>"; };
@@ -60,24 +68,29 @@
 		615F16BCBF4D6E5924FF1863 /* OverlayDrawingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayDrawingView.swift; sourceTree = "<group>"; };
 		616602D39FECD746267CF9E8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6B1FAA2C4015458E1CF86314 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6C139F578B2E00D06B11F5BC /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		709AF939E737EDFB0CAAC5C1 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		77D2928644B1C73B5846F585 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		7D7521C840C6EC357AB55A67 /* FramePoolLabVisionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePoolLabVisionClient.swift; sourceTree = "<group>"; };
+		7E23BC4C6A4DE538FA25B68C /* FramePoolLabViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePoolLabViewModel.swift; sourceTree = "<group>"; };
 		806DDC3C923C4CEE9BFB7790 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9B012D74BDE228EF51B45ED3 /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
 		9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenHaloTests.swift; sourceTree = "<group>"; };
-		A1D6003E2DA9A0DE75658A15 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		9EFE878E0C8268BE183F1026 /* FramePoolLabApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePoolLabApp.swift; sourceTree = "<group>"; };
 		A3FA5CF16B21CDBCF11D73B1 /* OpenHalo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenHalo.entitlements; sourceTree = "<group>"; };
 		A77732294A8B8F9F47086110 /* OverlayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayContentView.swift; sourceTree = "<group>"; };
 		AA59C3CB77346240C653B1DD /* AnalysisDebugSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisDebugSession.swift; sourceTree = "<group>"; };
-		B1A437032E829F4300AA1001 /* ScreenCaptureServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureServiceTests.swift; sourceTree = "<group>"; };
 		B22F629CDF3FA977FF7349C7 /* ChatBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBubbleView.swift; sourceTree = "<group>"; };
-		B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRegion.swift; sourceTree = "<group>"; };
 		C4FBCA3D25821AEDD6EA9183 /* OpenHaloTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenHaloTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB8B4C0154C9EFD63EF64FBD /* JSONSchemaParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONSchemaParser.swift; sourceTree = "<group>"; };
+		CD3F2C44B9B1E0BCE6E0A9C0 /* AIResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponse.swift; sourceTree = "<group>"; };
+		CD4102EB18298A99DC79C2E5 /* HighlightRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRegion.swift; sourceTree = "<group>"; };
 		D02CF9E9D9F921433628CDF0 /* OpenHaloApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenHaloApp.swift; sourceTree = "<group>"; };
-		E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRequest.swift; sourceTree = "<group>"; };
+		D657CA4C979CF88ABAC983CB /* AIRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRequest.swift; sourceTree = "<group>"; };
+		E217B6F786159140984A8500 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		E5E36F5E89756D0E3571A0FF /* ScreenCaptureServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureServiceTests.swift; sourceTree = "<group>"; };
 		F645419263338029533A4663 /* CGImageExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGImageExtensions.swift; sourceTree = "<group>"; };
-		F9D93EEE55D87CD22AFCF3D5 /* AIResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIResponse.swift; sourceTree = "<group>"; };
+		FA3B42774D1646507A6874AD /* FramePoolLabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePoolLabView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -98,15 +111,37 @@
 		21B9108557BB6D81D6321D67 = {
 			isa = PBXGroup;
 			children = (
+				E6609F6AC8A00FBB085DF9E9 /* FramePoolLab */,
+				A094465FF73F00F01BFC4215 /* Models */,
 				A3414D28E6E30FCD8A113FA4 /* OpenHalo */,
 				DF08D1BD331D5750528F26C1 /* OpenHaloTests */,
+				6C18CCD465C9162153ED6106 /* Services */,
+				828F4FF2DBA01A99E1A2E3C0 /* Utilities */,
 				59FAE4A31788BB9AC2DFD22A /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		3269411FF1EFAE0496C0478E /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				7D7521C840C6EC357AB55A67 /* FramePoolLabVisionClient.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		454D2326352A65A749DBE6A8 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9EFE878E0C8268BE183F1026 /* FramePoolLabApp.swift */,
+				7E23BC4C6A4DE538FA25B68C /* FramePoolLabViewModel.swift */,
+			);
+			path = App;
 			sourceTree = "<group>";
 		};
 		59FAE4A31788BB9AC2DFD22A /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				233D0A158849AFF00E2AE70D /* FramePoolLab.app */,
 				5BC990201D7DB8F7696C79A3 /* OpenHalo.app */,
 				C4FBCA3D25821AEDD6EA9183 /* OpenHaloTests.xctest */,
 			);
@@ -121,7 +156,8 @@
 				13F4E61010EC68A57DC9F69B /* OpenRouterClient.swift */,
 				52305C1BCCB6B0617E7D34EF /* ScreenCaptureService.swift */,
 			);
-			path = Services;
+			name = Services;
+			path = OpenHalo/Services;
 			sourceTree = "<group>";
 		};
 		828F4FF2DBA01A99E1A2E3C0 /* Utilities */ = {
@@ -133,7 +169,21 @@
 				CB8B4C0154C9EFD63EF64FBD /* JSONSchemaParser.swift */,
 				4CF1848218BFD50167A842D5 /* ScreenGeometry.swift */,
 			);
-			path = Utilities;
+			name = Utilities;
+			path = OpenHalo/Utilities;
+			sourceTree = "<group>";
+		};
+		A094465FF73F00F01BFC4215 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D657CA4C979CF88ABAC983CB /* AIRequest.swift */,
+				CD3F2C44B9B1E0BCE6E0A9C0 /* AIResponse.swift */,
+				6C139F578B2E00D06B11F5BC /* AppSettings.swift */,
+				E217B6F786159140984A8500 /* ChatMessage.swift */,
+				CD4102EB18298A99DC79C2E5 /* HighlightRegion.swift */,
+			);
+			name = Models;
+			path = OpenHalo/Models;
 			sourceTree = "<group>";
 		};
 		A3414D28E6E30FCD8A113FA4 /* OpenHalo */ = {
@@ -143,7 +193,7 @@
 				616602D39FECD746267CF9E8 /* Info.plist */,
 				A3FA5CF16B21CDBCF11D73B1 /* OpenHalo.entitlements */,
 				F3B492BA1B8F40D084E9678C /* App */,
-				E4D027FD7CC600971A9364FA /* Models */,
+				A094465FF73F00F01BFC4215 /* Models */,
 				6C18CCD465C9162153ED6106 /* Services */,
 				828F4FF2DBA01A99E1A2E3C0 /* Utilities */,
 				173FCADE99033032C2DACCDB /* Views */,
@@ -151,25 +201,31 @@
 			path = OpenHalo;
 			sourceTree = "<group>";
 		};
+		ABF66DC5DA93A965379DF1F4 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				FA3B42774D1646507A6874AD /* FramePoolLabView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		DF08D1BD331D5750528F26C1 /* OpenHaloTests */ = {
 			isa = PBXGroup;
 			children = (
 				9C3AA21FA00FB3B0AF4C1406 /* OpenHaloTests.swift */,
-				B1A437032E829F4300AA1001 /* ScreenCaptureServiceTests.swift */,
+				E5E36F5E89756D0E3571A0FF /* ScreenCaptureServiceTests.swift */,
 			);
 			path = OpenHaloTests;
 			sourceTree = "<group>";
 		};
-		E4D027FD7CC600971A9364FA /* Models */ = {
+		E6609F6AC8A00FBB085DF9E9 /* FramePoolLab */ = {
 			isa = PBXGroup;
 			children = (
-				E20B2B0AF60B0C228E0EDE8F /* AIRequest.swift */,
-				F9D93EEE55D87CD22AFCF3D5 /* AIResponse.swift */,
-				0842EB8A1F1EA092133F6C67 /* AppSettings.swift */,
-				A1D6003E2DA9A0DE75658A15 /* ChatMessage.swift */,
-				B606965A1AF0D85E35F7ADDE /* HighlightRegion.swift */,
+				454D2326352A65A749DBE6A8 /* App */,
+				3269411FF1EFAE0496C0478E /* Services */,
+				ABF66DC5DA93A965379DF1F4 /* Views */,
 			);
-			path = Models;
+			path = FramePoolLab;
 			sourceTree = "<group>";
 		};
 		F3B492BA1B8F40D084E9678C /* App */ = {
@@ -185,6 +241,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		40EEA7207B186ED18EE79720 /* FramePoolLab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 62F15B875D6AFCB69C21F2A9 /* Build configuration list for PBXNativeTarget "FramePoolLab" */;
+			buildPhases = (
+				988202131F1728C283A31F8C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FramePoolLab;
+			packageProductDependencies = (
+			);
+			productName = FramePoolLab;
+			productReference = 233D0A158849AFF00E2AE70D /* FramePoolLab.app */;
+			productType = "com.apple.product-type.application";
+		};
 		9D874A845158543F080132DA /* OpenHaloTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 93CCD930FE206D63AFB1972C /* Build configuration list for PBXNativeTarget "OpenHaloTests" */;
@@ -230,6 +303,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					40EEA7207B186ED18EE79720 = {
+						DevelopmentTeam = ZBTZQYM487;
+						ProvisioningStyle = Manual;
+					};
 					9D874A845158543F080132DA = {
 						DevelopmentTeam = ZBTZQYM487;
 						ProvisioningStyle = Manual;
@@ -254,6 +331,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				40EEA7207B186ED18EE79720 /* FramePoolLab */,
 				C7446330AE2BDE64EEC18E16 /* OpenHalo */,
 				9D874A845158543F080132DA /* OpenHaloTests */,
 			);
@@ -272,12 +350,27 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		988202131F1728C283A31F8C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84D0BAC7202A9E5D2E895CF2 /* AIRequest.swift in Sources */,
+				E223667BB4F75CF18184827F /* AIResponse.swift in Sources */,
+				2FF2A7D5460E95D801CE2B39 /* CGImageExtensions.swift in Sources */,
+				B7B5229282693E0F59F4E640 /* FramePoolLabApp.swift in Sources */,
+				195A651D6B373D00E9F51ED9 /* FramePoolLabView.swift in Sources */,
+				19B0E6871B372C76DAB06683 /* FramePoolLabViewModel.swift in Sources */,
+				173B4ADCAA0BDB969B537DCB /* FramePoolLabVisionClient.swift in Sources */,
+				A0875F5ED9CBB955D298BA07 /* ScreenCaptureService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A0460CEE44910848C5C0D0A5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				0922DE1892637A345AB8BEE0 /* OpenHaloTests.swift in Sources */,
-				B1A437022E829F4300AA1001 /* ScreenCaptureServiceTests.swift in Sources */,
+				831F3AC20FC07540CB77C084 /* ScreenCaptureServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -286,19 +379,19 @@
 			buildActionMask = 2147483647;
 			files = (
 				9D6AED6ACE4280410EC218F7 /* AIAnalysisPipeline.swift in Sources */,
-				BACDCA0958B453A10ED2FA82 /* AIRequest.swift in Sources */,
-				0F430A9080D57974C8EAF5B9 /* AIResponse.swift in Sources */,
+				1A1A04C6E77DEC2FB22B5019 /* AIRequest.swift in Sources */,
+				DFA35BC94D0DCBA7B6BFE5AD /* AIResponse.swift in Sources */,
 				BED67728095AB9CA6D785752 /* AnalysisDebugSession.swift in Sources */,
 				62114AEC3495DC93B69B8E74 /* AnnotatedScreenshotRenderer.swift in Sources */,
 				85E348F8E3B3BBFC8EDCB1CC /* AppDelegate.swift in Sources */,
-				443CB801E01233F8C6C24C0E /* AppSettings.swift in Sources */,
+				F5EA3DC2ED264ACBA091376D /* AppSettings.swift in Sources */,
 				F91A907B2B5E9BC046B54E22 /* AppState.swift in Sources */,
 				6BCE30DFC1E5A7008ED11A97 /* CGImageExtensions.swift in Sources */,
 				7E97E185CC97AAC5BE94856F /* ChatBubbleView.swift in Sources */,
-				73F203C4F78755EA1393D4F1 /* ChatMessage.swift in Sources */,
+				82747A0474986D7D90AB56B6 /* ChatMessage.swift in Sources */,
 				593CDFAB1FAA779CD06C42B5 /* ChatPanelView.swift in Sources */,
 				ADCF0BF1F7AD2F5777177C29 /* HighlightRectangleView.swift in Sources */,
-				A970A5FD2BFBE8D0553AA142 /* HighlightRegion.swift in Sources */,
+				C0B2382ACC47ED06AAD0935C /* HighlightRegion.swift in Sources */,
 				8B8C3B91FF594FD1597C8C77 /* HotkeyService.swift in Sources */,
 				7F6AB99C58B1592939F76B8D /* JSONSchemaParser.swift in Sources */,
 				4FB393F9F24A56B209C6E4BD /* OpenHaloApp.swift in Sources */,
@@ -386,6 +479,46 @@
 				SYMROOT = "$(PROJECT_DIR)/build";
 			};
 			name = Debug;
+		};
+		341F17DD8CB1BD9F1630D30D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZBTZQYM487;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openhalo.framepoollab;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		51239CD5724363DBE3F6C798 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZBTZQYM487;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.openhalo.framepoollab;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
 		};
 		59373BCA5AA70B033D36FD47 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -549,6 +682,15 @@
 			buildConfigurations = (
 				12FD42901FE553C8B13456ED /* Debug */,
 				BDE9876B0E191FF08AD09C73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		62F15B875D6AFCB69C21F2A9 /* Build configuration list for PBXNativeTarget "FramePoolLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				341F17DD8CB1BD9F1630D30D /* Debug */,
+				51239CD5724363DBE3F6C798 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

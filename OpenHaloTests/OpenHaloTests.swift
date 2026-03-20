@@ -1246,6 +1246,7 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertTrue(AppSettings.availableModels.contains("openai/gpt-5"))
         XCTAssertTrue(AppSettings.availableModels.contains("anthropic/claude-sonnet-4.6"))
         XCTAssertTrue(AppSettings.availableModels.contains("anthropic/claude-opus-4.6"))
+        XCTAssertTrue(AppSettings.availableModels.contains("meta-llama/llama-4-maverick"))
         XCTAssertTrue(AppSettings.availableModels.contains("google/gemini-2.5-flash"))
         XCTAssertTrue(AppSettings.availableModels.contains("google/gemini-2.5-pro"))
         XCTAssertTrue(AppSettings.availableModels.contains("google/gemini-3-flash-preview"))
