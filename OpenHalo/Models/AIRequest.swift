@@ -1,5 +1,34 @@
 import Foundation
 
+struct AIRequestTarget: Equatable, Sendable {
+    static let openRouterBaseURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+    static let localVLLMBaseURL = URL(string: "https://vllm.opencache.ai/v1/chat/completions")!
+    static let localVLLMModel = "openhalo"
+
+    let baseURL: URL
+    let model: String
+    let apiKey: String?
+    let includeOpenRouterHeaders: Bool
+
+    static func openRouter(model: String, apiKey: String) -> AIRequestTarget {
+        AIRequestTarget(
+            baseURL: openRouterBaseURL,
+            model: model,
+            apiKey: apiKey,
+            includeOpenRouterHeaders: true
+        )
+    }
+
+    static func localVLLM(apiKey: String) -> AIRequestTarget {
+        AIRequestTarget(
+            baseURL: localVLLMBaseURL,
+            model: localVLLMModel,
+            apiKey: apiKey,
+            includeOpenRouterHeaders: false
+        )
+    }
+}
+
 struct OpenRouterRequest: Encodable, Sendable {
     let model: String
     let messages: [RequestMessage]

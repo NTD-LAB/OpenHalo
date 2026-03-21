@@ -6,6 +6,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("API Configuration") {
+                Toggle("Use local vLLM server", isOn: $appState.settings.useLocalServer)
+                    .onChange(of: appState.settings.useLocalServer) { _, _ in saveSettings() }
+
                 SecureField("OpenRouter API Key", text: $appState.settings.apiKey)
                     .onChange(of: appState.settings.apiKey) { _, _ in saveSettings() }
 
@@ -16,7 +19,7 @@ struct SettingsView: View {
                 }
                 .onChange(of: appState.settings.selectedModel) { _, _ in saveSettings() }
 
-                Text("Default model: GPT-5.3 Chat. Fast alternatives: GPT-4o Mini, Claude Sonnet 4.6, Llama 4 Maverick, Gemini 2.0 Flash Lite, and Gemini 2.0 Flash. Claude Opus 4.6 is also available when you want a heavier Anthropic option. Reasoning is off by default to reduce interactive delay. OpenHalo still prefers strict JSON schema output and falls back to plain JSON mode if a model/provider rejects structured outputs. Vertex-only preview models are intentionally excluded from this picker.")
+                Text(apiConfigurationHelpText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -79,9 +82,20 @@ struct SettingsView: View {
     }
 
     private var reasoningHelpText: String {
+        if appState.settings.useLocalServer {
+            return "Guide and refinement use the fixed https://vllm.opencache.ai vLLM endpoint with the served model name \"openhalo\". Planner still runs on the selected OpenRouter model, so reasoning only affects planner in this mode."
+        }
         if AppSettings.supportsReasoning(for: appState.settings.selectedModel) {
             return "This model supports OpenRouter reasoning controls, but OpenHalo keeps reasoning off by default to minimize latency. Turn it on only when you need slower, deeper analysis."
         }
         return "This model is already a standard low-latency model, so OpenHalo skips the reasoning parameter."
+    }
+
+    private var apiConfigurationHelpText: String {
+        if appState.settings.useLocalServer {
+            return "Local mode routes guide and refinement to the fixed https://vllm.opencache.ai vLLM endpoint using the served model name \"openhalo\". This HTTPS endpoint is behind auth, so the API key is still required. Planner still runs on OpenRouter and still uses the selected model for intent confirmation."
+        }
+
+        return "Default model: GPT-5.3 Chat. Fast alternatives: GPT-4o Mini, Claude Sonnet 4.6, Llama 4 Maverick, Gemini 2.0 Flash Lite, and Gemini 2.0 Flash. Claude Opus 4.6 is also available when you want a heavier Anthropic option. Reasoning is off by default to reduce interactive delay. OpenHalo still prefers strict JSON schema output and falls back to plain JSON mode if a model/provider rejects structured outputs. Vertex-only preview models are intentionally excluded from this picker."
     }
 }

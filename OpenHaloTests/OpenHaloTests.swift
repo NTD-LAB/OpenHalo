@@ -650,15 +650,13 @@ final class OpenHaloTests: XCTestCase {
             cropBox: AIAnalysisResponse.BoundingBox(x: 0.68, y: 0.0, width: 0.18, height: 0.12),
             activeContentBox: AIAnalysisResponse.BoundingBox(x: 0.66, y: 0.0, width: 0.11, height: 0.17),
             cropCandidates: cropCandidates,
+            previousPhaseTwoContext: nil,
             iteration: 3
         )
 
         XCTAssertTrue(prompt.contains("Active candidate: c2"))
         XCTAssertTrue(prompt.contains("Best candidate so far: c1"))
         XCTAssertTrue(prompt.contains("Visible episode memory"))
-        XCTAssertTrue(prompt.contains("Image guide"))
-        XCTAssertTrue(prompt.contains("Image 3 is the raw contents of the active candidate box"))
-        XCTAssertTrue(prompt.contains("enlarged only for readability"))
         XCTAssertTrue(prompt.contains("Exact active-candidate crop on full screen"))
         XCTAssertTrue(prompt.contains("c0 role=history"))
         XCTAssertTrue(prompt.contains("c1 role=best"))
@@ -669,6 +667,60 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertTrue(prompt.contains("crop_box=x=0.4500"))
         XCTAssertTrue(prompt.contains("best FINAL presentation box"))
         XCTAssertTrue(prompt.contains("best_candidate_id"))
+    }
+
+    func testBuildRefinementUserPromptIncludesPreviousPhaseTwoContext() {
+        let highlight = AIAnalysisResponse.HighlightData(
+            id: "h1",
+            label: "New Chat button",
+            boundingBox: .init(x: 0.08, y: 0.16, width: 0.14, height: 0.05),
+            elementType: "button"
+        )
+        let active = EpisodeCandidate(
+            id: "c2",
+            box: .init(x: 0.08, y: 0.16, width: 0.14, height: 0.05),
+            passIndex: 2,
+            qualityScore: 81,
+            candidateDescription: "Button below the search field.",
+            evaluationNote: "Close, but slightly low.",
+            origin: "refinement_pass_2"
+        )
+        let context = RefinementPhaseTwoContext(
+            sourcePass: 2,
+            summary: "The New Chat button is visible below the search bar in the left sidebar.",
+            highlights: [
+                RefinementPhaseTwoHighlight(
+                    label: "New Chat button",
+                    box: .init(x: 0.07, y: 0.12, width: 0.16, height: 0.05),
+                    elementType: "button"
+                )
+            ]
+        )
+
+        let prompt = AIAnalysisPipeline.buildRefinementUserPrompt(
+            query: "Find the New Chat button",
+            highlight: highlight,
+            activeCandidate: active,
+            bestCandidate: active,
+            visibleCandidates: [active],
+            cropBox: .init(x: 0.02, y: 0.05, width: 0.28, height: 0.22),
+            activeContentBox: .init(x: 0.08, y: 0.16, width: 0.14, height: 0.05),
+            cropCandidates: [
+                RenderedEpisodeCandidate(
+                    candidateID: "c2",
+                    box: .init(x: 0.22, y: 0.45, width: 0.40, height: 0.18),
+                    qualityScore: 81,
+                    role: .active
+                )
+            ],
+            previousPhaseTwoContext: context,
+            iteration: 3
+        )
+
+        XCTAssertTrue(prompt.contains("Previous pass analysis context"))
+        XCTAssertTrue(prompt.contains("source_pass=2"))
+        XCTAssertTrue(prompt.contains("summary=\"The New Chat button is visible below the search bar in the left sidebar.\""))
+        XCTAssertTrue(prompt.contains("label=\"New Chat button\""))
     }
 
     @MainActor
@@ -683,6 +735,9 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Follow the provided schema exactly"))
         XCTAssertTrue(prompt.contains("Do not invent alternate keys such as element or bbox"))
         XCTAssertTrue(prompt.contains("next_action must be an object"))
+        XCTAssertTrue(prompt.contains("summary must be one short sentence under 24 words"))
+        XCTAssertTrue(prompt.contains("Never repeat the same fact twice"))
+        XCTAssertTrue(prompt.contains("Do not list neighboring icons"))
         XCTAssertTrue(prompt.contains("Example valid response"))
         XCTAssertTrue(prompt.contains("Example invalid response shape"))
     }
@@ -771,25 +826,22 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Ignore the OpenHalo assistant window"))
         XCTAssertTrue(prompt.contains("Reason from UI semantics and app context"))
         XCTAssertTrue(prompt.contains("Image 3"))
-        XCTAssertTrue(prompt.contains("raw contents of the ACTIVE candidate box, cropped exactly to the current box and enlarged only for visibility"))
-        XCTAssertTrue(prompt.contains("Use Image 3 to judge exactly what the ACTIVE candidate box contains"))
-        XCTAssertTrue(prompt.contains("preserves the exact box contents even if it has been enlarged for readability"))
-        XCTAssertTrue(prompt.contains("Best candidate so far"))
+        XCTAssertTrue(prompt.contains("exact ACTIVE candidate contents, enlarged only for readability"))
+        XCTAssertTrue(prompt.contains("If Image 3 clearly shows the wrong object, do not accept the active candidate"))
+        XCTAssertTrue(prompt.contains("Best verified candidate"))
         XCTAssertTrue(prompt.contains("perfect click-precision is unnecessary"))
         XCTAssertTrue(prompt.contains("Slightly larger but stable is better than tiny and jittery"))
         XCTAssertTrue(prompt.contains("best_candidate_id"))
         XCTAssertTrue(prompt.contains("active_candidate_description"))
         XCTAssertTrue(prompt.contains("active_candidate_assessment"))
         XCTAssertTrue(prompt.contains("follow the provided schema exactly"))
-        XCTAssertTrue(prompt.contains("Always set best_candidate_id on every response"))
+        XCTAssertTrue(prompt.contains("Always return active_candidate_description"))
         XCTAssertTrue(prompt.contains("move_xy"))
-        XCTAssertTrue(prompt.contains("move_xy may use any finite decimal values within the range [-4, 4]"))
-        XCTAssertTrue(prompt.contains("High-precision floating-point values are allowed"))
-        XCTAssertTrue(prompt.contains("Ghost boxes show coarse reference positions"))
+        XCTAssertTrue(prompt.contains("move_xy may use any finite decimal values within [-4, 4]"))
+        XCTAssertTrue(prompt.contains("Ghost boxes are coarse integer references only"))
         XCTAssertTrue(prompt.contains("Do not return a freeform target_box unless falling back for legacy compatibility"))
-        XCTAssertTrue(prompt.contains("For move, best_candidate_id must still name the best already-visible candidate from this round"))
+        XCTAssertTrue(prompt.contains("For move, keep best_candidate_id on the best already-visible candidate"))
         XCTAssertTrue(prompt.contains("If Image 3 disagrees with older candidate memory, trust Image 3"))
-        XCTAssertTrue(prompt.contains("You, not the framework, decide which candidate is currently best"))
         XCTAssertTrue(prompt.contains("Example accept"))
         XCTAssertTrue(prompt.contains("Example move"))
         XCTAssertTrue(prompt.contains("Example relocalize"))
@@ -1128,8 +1180,54 @@ final class OpenHaloTests: XCTestCase {
         let settings = AppSettings()
 
         XCTAssertEqual(settings.selectedModel, AppSettings.defaultModel)
+        XCTAssertFalse(settings.useLocalServer)
         XCTAssertEqual(settings.reasoningEnabled, AppSettings.defaultReasoningEnabled)
         XCTAssertEqual(settings.reasoningEffort, AppSettings.defaultReasoningEffort)
+    }
+
+    func testAppSettingsReturnsLocalRequestTargetWhenEnabled() {
+        var settings = AppSettings()
+        settings.apiKey = "test-key"
+        settings.selectedModel = "openai/gpt-5.3-chat"
+        settings.useLocalServer = true
+
+        let target = settings.requestTarget
+
+        XCTAssertEqual(target.baseURL, AIRequestTarget.localVLLMBaseURL)
+        XCTAssertEqual(target.model, AIRequestTarget.localVLLMModel)
+        XCTAssertEqual(target.apiKey, "test-key")
+        XCTAssertFalse(target.includeOpenRouterHeaders)
+        XCTAssertTrue(settings.requiresAPIKey)
+        XCTAssertTrue(settings.plannerRequiresAPIKey)
+    }
+
+    func testAppSettingsReturnsOpenRouterTargetByDefault() {
+        var settings = AppSettings()
+        settings.apiKey = "test-key"
+        settings.selectedModel = "openai/gpt-5.3-chat"
+
+        let target = settings.requestTarget
+
+        XCTAssertEqual(target.baseURL, AIRequestTarget.openRouterBaseURL)
+        XCTAssertEqual(target.model, "openai/gpt-5.3-chat")
+        XCTAssertEqual(target.apiKey, "test-key")
+        XCTAssertTrue(target.includeOpenRouterHeaders)
+        XCTAssertTrue(settings.requiresAPIKey)
+        XCTAssertTrue(settings.plannerRequiresAPIKey)
+    }
+
+    func testAppSettingsReturnsOpenRouterPlannerTargetWhenLocalServerEnabled() {
+        var settings = AppSettings()
+        settings.apiKey = "test-key"
+        settings.selectedModel = "openai/gpt-5.3-chat"
+        settings.useLocalServer = true
+
+        let target = settings.plannerRequestTarget
+
+        XCTAssertEqual(target.baseURL, AIRequestTarget.openRouterBaseURL)
+        XCTAssertEqual(target.model, "openai/gpt-5.3-chat")
+        XCTAssertEqual(target.apiKey, "test-key")
+        XCTAssertTrue(target.includeOpenRouterHeaders)
     }
 
     func testOpenRouterRequestEncodesReasoningConfiguration() throws {
@@ -1175,6 +1273,35 @@ final class OpenHaloTests: XCTestCase {
         XCTAssertEqual(jsonSchema["name"] as? String, "test_schema")
         XCTAssertEqual(jsonSchema["strict"] as? Bool, true)
         XCTAssertEqual(plugins.first?["id"] as? String, "response-healing")
+    }
+
+    func testMakeRefinementPhaseTwoContextCapturesSummaryAndHighlights() {
+        let response = AIAnalysisResponse(
+            message: "I found it.",
+            summary: "The New Chat button is visible below the search field in the left sidebar.",
+            nextAction: .init(
+                instruction: "Click the New Chat button.",
+                highlightId: "h1"
+            ),
+            steps: [],
+            highlights: [
+                .init(
+                    id: "h1",
+                    label: "New Chat button",
+                    boundingBox: .init(x: 0.07, y: 0.12, width: 0.16, height: 0.05),
+                    elementType: "button"
+                )
+            ]
+        )
+
+        let context = AIAnalysisPipeline.makeRefinementPhaseTwoContext(
+            from: response,
+            pass: 4
+        )
+
+        XCTAssertEqual(context?.sourcePass, 4)
+        XCTAssertEqual(context?.summary, "The New Chat button is visible below the search field in the left sidebar.")
+        XCTAssertEqual(context?.highlights.first?.label, "New Chat button")
     }
 
     func testOpenRouterAPIResponseDecodesContentBlockArrays() throws {

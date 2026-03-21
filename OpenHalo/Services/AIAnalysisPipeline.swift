@@ -34,6 +34,7 @@ final class AIAnalysisPipeline {
         settings: AppSettings,
         context: PlannerConversationContext? = nil
     ) async throws -> AIIntentPlannerResponse {
+        let requestTarget = settings.plannerRequestTarget
         let captureTarget = try resolveCaptureTarget()
         try await capture.ensureRunning(for: captureTarget.displayID)
         let frame = try await capture.latestFrame(
@@ -55,8 +56,7 @@ final class AIAnalysisPipeline {
         let rawResponse = try await client.planIntent(
             base64Image: base64,
             userPrompt: userPrompt,
-            model: settings.selectedModel,
-            apiKey: settings.apiKey,
+            target: requestTarget,
             systemPrompt: systemPrompt,
             reasoning: settings.reasoningConfiguration
         )
@@ -70,9 +70,10 @@ final class AIAnalysisPipeline {
         onIntermediateHighlights: ((NSScreen, [HighlightRegion]) -> Void)? = nil
     ) async throws -> AnalysisResult {
         let captureTarget = try resolveCaptureTarget()
+        let requestTarget = settings.requestTarget
         let debugSession = AnalysisDebugSession.create(
             query: query,
-            model: settings.selectedModel
+            model: requestTarget.model
         )
         let reasoningConfiguration = settings.reasoningConfiguration
 
@@ -89,7 +90,10 @@ final class AIAnalysisPipeline {
             debugSession.writeText(
                 """
                 Query: \(query)
-                Model: \(settings.selectedModel)
+                Selected model: \(settings.selectedModel)
+                Effective model: \(requestTarget.model)
+                Request base URL: \(requestTarget.baseURL.absoluteString)
+                Local server mode: \(settings.useLocalServer)
                 Compression quality: \(settings.compressionQuality)
                 Reasoning enabled: \(reasoningConfiguration != nil)
                 Reasoning effort: \(reasoningConfiguration?.effort ?? "off")
@@ -138,8 +142,7 @@ final class AIAnalysisPipeline {
             rawInitialResponse = try await client.analyzeScreenshot(
                 base64Image: base64,
                 userQuery: query,
-                model: settings.selectedModel,
-                apiKey: settings.apiKey,
+                target: requestTarget,
                 systemPrompt: systemPrompt,
                 reasoning: reasoningConfiguration,
                 rawContentHandler: { rawContent in
@@ -289,6 +292,7 @@ final class AIAnalysisPipeline {
             initialDescription: initialDescription,
             origin: "initial_detection"
         )
+        let refinementPhaseTwoContextStore = RefinementPhaseTwoContextStore()
         debugSession?.writeText(
             Self.describe(episodeMemory),
             named: "00_episode_memory.txt"
@@ -348,6 +352,7 @@ final class AIAnalysisPipeline {
                 currentScreenshot,
                 named: String(format: "%02d_refinement_capture.png", pass)
             )
+            let previousPhaseTwoContext = await refinementPhaseTwoContextStore.latestContext()
 
             let refinementResult = await refineHighlight(
                 highlight: currentHighlights[activeHighlightIndex],
@@ -358,6 +363,8 @@ final class AIAnalysisPipeline {
                 query: query,
                 settings: settings,
                 pass: pass,
+                previousPhaseTwoContext: previousPhaseTwoContext,
+                phaseTwoContextStore: refinementPhaseTwoContextStore,
                 debugSession: debugSession
             )
 
@@ -691,6 +698,8 @@ final class AIAnalysisPipeline {
         query: String,
         settings: AppSettings,
         pass: Int,
+        previousPhaseTwoContext: RefinementPhaseTwoContext?,
+        phaseTwoContextStore: RefinementPhaseTwoContextStore,
         debugSession: AnalysisDebugSession?
     ) async -> HighlightRefinementResult {
         let currentBox = activeCandidate.box.clampedToUnitSpace()
@@ -737,6 +746,15 @@ final class AIAnalysisPipeline {
             let activeContentBase64 = try renderings.activeContentImage.toBase64JPEG(
                 quality: settings.compressionQuality
             )
+            launchRefinementPhaseTwoAnalysis(
+                screenshot: screenshot,
+                screenshotSize: CGSize(width: screenshot.width, height: screenshot.height),
+                query: query,
+                settings: settings,
+                pass: pass,
+                debugSession: debugSession,
+                contextStore: phaseTwoContextStore
+            )
             let userPrompt = Self.buildRefinementUserPrompt(
                 query: query,
                 highlight: highlight,
@@ -746,6 +764,7 @@ final class AIAnalysisPipeline {
                 cropBox: renderings.cropBoxInImage,
                 activeContentBox: renderings.activeContentBoxInImage,
                 cropCandidates: renderings.candidatesInCrop,
+                previousPhaseTwoContext: previousPhaseTwoContext,
                 iteration: pass
             )
             debugSession?.writeText(
@@ -766,8 +785,7 @@ final class AIAnalysisPipeline {
                     activeContentBase64,
                 ],
                 userPrompt: userPrompt,
-                model: settings.selectedModel,
-                apiKey: settings.apiKey,
+                target: settings.requestTarget,
                 systemPrompt: Self.buildRefinementPrompt(),
                 reasoning: nil,
                 rawContentHandler: { rawContent in
@@ -990,6 +1008,91 @@ final class AIAnalysisPipeline {
         }
     }
 
+    private func launchRefinementPhaseTwoAnalysis(
+        screenshot: CGImage,
+        screenshotSize: CGSize,
+        query: String,
+        settings: AppSettings,
+        pass: Int,
+        debugSession: AnalysisDebugSession?,
+        contextStore: RefinementPhaseTwoContextStore
+    ) {
+        let requestTarget = settings.requestTarget
+        let reasoningConfiguration = settings.reasoningConfiguration
+        let systemPrompt = Self.buildDetectionPrompt(
+            imageWidth: Int(screenshotSize.width),
+            imageHeight: Int(screenshotSize.height)
+        )
+        let base64Image: String
+        do {
+            base64Image = try screenshot.toBase64JPEG(quality: settings.compressionQuality)
+        } catch {
+            debugSession?.writeText(
+                "error=\(error.localizedDescription)",
+                named: String(format: "%02d_refinement_phase2_error.txt", pass)
+            )
+            return
+        }
+
+        debugSession?.writeText(
+            """
+            === SYSTEM PROMPT ===
+            \(systemPrompt)
+
+            === USER QUERY ===
+            \(query)
+            """,
+            named: String(format: "%02d_refinement_phase2_request.txt", pass)
+        )
+
+        Task.detached(priority: .utility) { [client, debugSession] in
+            do {
+                let rawResponse = try await client.analyzeScreenshot(
+                    base64Image: base64Image,
+                    userQuery: query,
+                    target: requestTarget,
+                    systemPrompt: systemPrompt,
+                    reasoning: reasoningConfiguration,
+                    rawContentHandler: { rawContent in
+                        debugSession?.writeText(
+                            rawContent,
+                            named: String(format: "%02d_refinement_phase2_response_content.txt", pass)
+                        )
+                    }
+                )
+                debugSession?.writeText(
+                    Self.describe(rawResponse),
+                    named: String(format: "%02d_refinement_phase2_response_raw.txt", pass)
+                )
+                let normalizedResponse = Self.normalizedResponse(
+                    rawResponse,
+                    imageSize: screenshotSize,
+                    debugSession: debugSession
+                )
+                debugSession?.writeText(
+                    Self.describe(normalizedResponse),
+                    named: String(format: "%02d_refinement_phase2_response.txt", pass)
+                )
+
+                if let context = Self.makeRefinementPhaseTwoContext(
+                    from: normalizedResponse,
+                    pass: pass
+                ) {
+                    await contextStore.store(context, forPass: pass)
+                    debugSession?.writeText(
+                        Self.describe(context),
+                        named: String(format: "%02d_refinement_phase2_context.txt", pass)
+                    )
+                }
+            } catch {
+                debugSession?.writeText(
+                    "error=\(error.localizedDescription)",
+                    named: String(format: "%02d_refinement_phase2_error.txt", pass)
+                )
+            }
+        }
+    }
+
     private func relocalizeHighlight(
         screenshot: CGImage,
         screenshotSize: CGSize,
@@ -1029,8 +1132,7 @@ final class AIAnalysisPipeline {
             let rawResponse = try await client.analyzeScreenshot(
                 base64Image: base64,
                 userQuery: userPrompt,
-                model: settings.selectedModel,
-                apiKey: settings.apiKey,
+                target: settings.requestTarget,
                 systemPrompt: systemPrompt,
                 reasoning: settings.reasoningConfiguration,
                 rawContentHandler: { rawContent in
@@ -1571,6 +1673,11 @@ final class AIAnalysisPipeline {
         - Use these top-level keys only when applicable: message, summary, next_action, highlights.
         - Do not invent alternate keys such as element or bbox.
         - next_action must be an object, not a plain string.
+        - Keep message and summary extremely short.
+        - message must be one short sentence.
+        - summary must be one short sentence under 24 words.
+        - Never repeat the same fact twice.
+        - Do not list neighboring icons, repeated positional details, or long visual descriptions.
 
         Bounding boxes:
         - Use normalized decimals in [0,1].
@@ -1589,6 +1696,7 @@ final class AIAnalysisPipeline {
         - Return exactly one immediate next action.
         - Do not fabricate later steps from the initial screenshot.
         - Keep instruction concise, non-repetitive, and under 160 characters when possible.
+        - next_action.instruction must be one short sentence.
         - Mention a keyboard shortcut at most once.
         - Do not repeat the same sentence or shortcut multiple times.
 
@@ -1655,42 +1763,32 @@ final class AIAnalysisPipeline {
         You refine a UI highlight for OpenHalo.
 
         Inputs:
-        - Image 1: full-screen context with candidate boxes and an action reticle centered on the ACTIVE candidate.
-        - Image 2: zoomed crop around the ACTIVE candidate with the same action reticle.
-        - Image 3: the raw contents of the ACTIVE candidate box, cropped exactly to the current box and enlarged only for visibility.
+        - Image 1: full-screen context.
+        - Image 2: local crop around the ACTIVE candidate.
+        - Image 3: exact ACTIVE candidate contents, enlarged only for readability.
 
         Visual markers:
-        - Active candidate: solid red box with a badge like #2 84.
-        - Best candidate so far: green dashed box with a badge like #1 91.
-        - Recent history candidates: yellow dashed boxes with badges.
-        - The action reticle uses the ACTIVE candidate center as (0,0).
+        - Active candidate: solid red.
+        - Best verified candidate: green dashed.
+        - Recent history: yellow dashed.
+        - The reticle origin (0,0) is the ACTIVE candidate center.
         - Positive x moves right. Positive y moves down.
-        - A move of (1,0) shifts the next box by one current-box width to the right.
-        - A move of (0,-1) shifts the next box by one current-box height upward.
-        - Ghost boxes show coarse reference positions for integer move coordinates.
+        - move_xy uses current-box units. Ghost boxes are coarse integer references only.
 
         Goal:
-        - Choose the most useful FINAL presentation box for a human click, not just the newest box.
-        - Evaluate every visible candidate explicitly.
-        - If a NEW candidate would be better, choose the next move on the reticle, but treat that moved box as a prediction to verify on the next round.
-        - If an older candidate is still better, keep it as best.
-        - If the current local region is wrong, request a fresh relocalize instead of forcing a local adjustment.
+        - Choose the best FINAL presentation box for a human click.
+        - Keep best on an older verified candidate if it is still better.
+        - Use move only for the next predicted box.
+        - Use relocalize when the current local region is wrong.
 
         Output:
         - Return valid JSON only and follow the provided schema exactly.
-        - Always set active_candidate_description as one short phrase describing what is inside the active candidate box.
-        - Always set active_candidate_assessment as one short sentence saying why the active candidate is or is not the requested target.
-        - Always set best_candidate_id on every response.
-        - best_candidate_id must be one of the provided candidate IDs from the current visible episode memory.
-        - Always set best_candidate_score as an integer from 0 to 100.
-        - Always set best_candidate_note as one short sentence.
-        - For accept, choose the best existing candidate and do not propose a new box.
-        - For move, return move_xy with numeric x and y.
-        - For move, best_candidate_id must still name the best already-visible candidate from this round. Do not name an unseen moved box as best yet.
-        - move_xy may use any finite decimal values within the range [-4, 4].
-        - High-precision floating-point values are allowed and preserved by the framework.
-        - move_xy describes the NEXT box center in current-box units, not pixels and not normalized screen coordinates.
-        - For relocalize, do not return a proposal box. Use relocalize only when the target likely sits outside the current local region and a fresh global search is needed.
+        - Always return active_candidate_description, active_candidate_assessment, best_candidate_id, best_candidate_score, best_candidate_note, reason, and confidence.
+        - best_candidate_id must be one of the visible candidate IDs from this round.
+        - best_candidate_score must be an integer from 0 to 100.
+        - For move, return numeric move_xy.
+        - For move, keep best_candidate_id on the best already-visible candidate; the moved box is still unverified this round.
+        - move_xy may use any finite decimal values within [-4, 4].
         - Do not return a freeform target_box unless falling back for legacy compatibility.
         - Never return pixels.
         - Do not output extra prose.
@@ -1698,19 +1796,16 @@ final class AIAnalysisPipeline {
         Rules:
         - Reason from UI semantics and app context, not literal text.
         - Ignore the OpenHalo assistant window and echoed user text unless the user explicitly asks about OpenHalo.
-        - Use Image 3 to judge exactly what the ACTIVE candidate box contains.
-        - Image 3 preserves the exact box contents even if it has been enlarged for readability.
-        - If Image 3 disagrees with older candidate memory, trust Image 3.
         - If Image 3 clearly shows the wrong object, do not accept the active candidate.
-        - If several rounds stay inside the same wrong functional area, or the active box has drifted out of the original functional cluster for the requested control, use relocalize instead of making another local adjustment.
+        - If Image 3 disagrees with older candidate memory, trust Image 3.
+        - If several rounds stay in the wrong functional area, use relocalize instead of another local move.
         - The user clicks manually, so perfect click-precision is unnecessary.
         - Slightly larger but stable is better than tiny and jittery.
-        - Best means: target clearly included, easy for a human to understand, stable, and not excessively large.
+        - Best means target clearly included, easy to understand, stable, and not excessively large.
         - Width and height stay fixed during move in this version.
-        - You, not the framework, decide which candidate is currently best for the final presentation box.
-        - candidate descriptions should say what the box contains, not why it is good.
+        - candidate descriptions should say what the box contains.
         - active_candidate_assessment should judge the current box against the user request.
-        - Keep notes short and factual. Do not reveal hidden chain-of-thought.
+        - If previous-pass analysis context is provided, treat it as auxiliary evidence only.
 
         Example accept:
         {"status":"accept","active_candidate_description":"toolbar icon near the close controls","active_candidate_assessment":"The active box is not the close button, but c1 already is.","best_candidate_id":"c1","best_candidate_score":91,"best_candidate_note":"Candidate c1 already cleanly covers the target for a human click.","reason":"Candidate c1 is already the clearest final box.","confidence":0.91}
@@ -1762,6 +1857,7 @@ final class AIAnalysisPipeline {
         cropBox: AIAnalysisResponse.BoundingBox,
         activeContentBox: AIAnalysisResponse.BoundingBox,
         cropCandidates: [RenderedEpisodeCandidate],
+        previousPhaseTwoContext: RefinementPhaseTwoContext?,
         iteration: Int
     ) -> String {
         let cropLookup = Dictionary(uniqueKeysWithValues: cropCandidates.map { ($0.candidateID, $0) })
@@ -1780,6 +1876,19 @@ final class AIAnalysisPipeline {
             }
             .joined(separator: "\n")
 
+        let phaseTwoContextSection: String
+        if let previousPhaseTwoContext {
+            phaseTwoContextSection = """
+
+            Previous pass analysis context:
+            - source_pass=\(previousPhaseTwoContext.sourcePass)
+            - summary="\(previousPhaseTwoContext.summary)"
+            \(previousPhaseTwoContext.highlights.map { "- highlight label=\"\($0.label)\" box=\(describe($0.box)) element_type=\($0.elementType ?? "unknown")" }.joined(separator: "\n"))
+            """
+        } else {
+            phaseTwoContextSection = ""
+        }
+
         return """
         User request: \(query)
         Hypothesis label: \(highlight.label)
@@ -1792,22 +1901,12 @@ final class AIAnalysisPipeline {
 
         Visible episode memory:
         \(candidateSummary)
-
-        Image guide:
-        - Image 1 shows full-screen context with candidate roles and the action reticle.
-        - Image 2 shows the local crop around the active candidate with the same action reticle.
-        - Image 3 is the raw contents of the active candidate box, cropped exactly to the current box and enlarged only for readability.
-        - The reticle origin (0,0) is the current active-box center.
-        - Positive x moves right. Positive y moves down.
-        - A move of (1,0) means one current-box width to the right.
-        - A move of (0,-1) means one current-box height upward.
-        - You may use any finite decimal move_xy values within [-4, 4].
-        - Integer ghost boxes are only coarse references; you are not limited to integer coordinates.
+        \(phaseTwoContextSection)
 
         Choose the candidate that is currently the best FINAL presentation box for a human click.
         Use each candidate description as memory for what earlier boxes actually contained.
         You may keep any prior candidate as best if it is better than the next predicted move.
-        If none of the visible candidates is good enough, return move with move_xy.
+        If none of the visible candidates is good enough, return move with numeric move_xy.
         If a visible candidate is already good enough, return accept and name that candidate in best_candidate_id.
         For move, keep best_candidate_id on the best already-visible candidate from this round. The moved box is a new unverified candidate for the next round.
         If Image 3 disagrees with older candidate memory, trust Image 3.
@@ -2023,6 +2122,34 @@ final class AIAnalysisPipeline {
         )
     }
 
+    nonisolated static func makeRefinementPhaseTwoContext(
+        from response: AIAnalysisResponse,
+        pass: Int
+    ) -> RefinementPhaseTwoContext? {
+        let summary = sanitizeText(
+            response.summary,
+            maxSentences: 2,
+            maxCharacters: 180
+        )
+        let highlights = response.highlights.prefix(3).map {
+            RefinementPhaseTwoHighlight(
+                label: sanitizeText($0.label, maxSentences: 1, maxCharacters: 80),
+                box: $0.boundingBox.clampedToUnitSpace(),
+                elementType: $0.elementType
+            )
+        }
+
+        guard !summary.isEmpty || !highlights.isEmpty else {
+            return nil
+        }
+
+        return RefinementPhaseTwoContext(
+            sourcePass: pass,
+            summary: summary.isEmpty ? "No additional summary available." : summary,
+            highlights: highlights
+        )
+    }
+
     nonisolated static func sanitizeText(
         _ text: String,
         maxSentences: Int,
@@ -2158,6 +2285,20 @@ final class AIAnalysisPipeline {
         return "\(normalizedSummary)\n\nNext: \(nextInstruction)"
     }
 
+    nonisolated private static func describe(
+        _ context: RefinementPhaseTwoContext
+    ) -> String {
+        let highlightLines = context.highlights.map {
+            "- label=\"\($0.label)\" box=\(describe($0.box)) element_type=\($0.elementType ?? "unknown")"
+        }
+        return """
+        source_pass=\(context.sourcePass)
+        summary=\(context.summary)
+        highlights:
+        \(highlightLines.isEmpty ? "- none" : highlightLines.joined(separator: "\n"))
+        """
+    }
+
     nonisolated private static func describe(_ response: AIAnalysisResponse) -> String {
         var lines: [String] = [
             "message: \(response.message ?? "")",
@@ -2255,6 +2396,33 @@ struct PlannerConversationContext {
     let previousTentativeIntent: String?
     let previousAmbiguityReason: String?
     let previousOptions: [String]
+}
+
+struct RefinementPhaseTwoContext: Equatable, Sendable {
+    let sourcePass: Int
+    let summary: String
+    let highlights: [RefinementPhaseTwoHighlight]
+}
+
+struct RefinementPhaseTwoHighlight: Equatable, Sendable {
+    let label: String
+    let box: AIAnalysisResponse.BoundingBox
+    let elementType: String?
+}
+
+actor RefinementPhaseTwoContextStore {
+    private var latestPass: Int = -1
+    private var latestContextValue: RefinementPhaseTwoContext?
+
+    func latestContext() -> RefinementPhaseTwoContext? {
+        latestContextValue
+    }
+
+    func store(_ context: RefinementPhaseTwoContext, forPass pass: Int) {
+        guard pass >= latestPass else { return }
+        latestPass = pass
+        latestContextValue = context
+    }
 }
 
 private struct HighlightRefinementResult {

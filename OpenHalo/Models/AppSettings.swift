@@ -15,6 +15,7 @@ struct AppSettings: Codable {
 
     var apiKey: String
     var selectedModel: String
+    var useLocalServer: Bool
     var compressionQuality: Double
     var reasoningEnabled: Bool
     var reasoningEffort: String
@@ -41,6 +42,7 @@ struct AppSettings: Codable {
     enum CodingKeys: String, CodingKey {
         case apiKey
         case selectedModel
+        case useLocalServer
         case compressionQuality
         case reasoningEnabled
         case reasoningEffort
@@ -49,6 +51,7 @@ struct AppSettings: Codable {
     init() {
         self.apiKey = ""
         self.selectedModel = Self.defaultModel
+        self.useLocalServer = false
         self.compressionQuality = 0.7
         self.reasoningEnabled = Self.defaultReasoningEnabled
         self.reasoningEffort = Self.defaultReasoningEffort
@@ -58,6 +61,8 @@ struct AppSettings: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let decodedModel = try container.decodeIfPresent(String.self, forKey: .selectedModel)
             ?? Self.defaultModel
+        let decodedUseLocalServer = try container.decodeIfPresent(Bool.self, forKey: .useLocalServer)
+            ?? false
         let decodedCompressionQuality = try container.decodeIfPresent(Double.self, forKey: .compressionQuality)
             ?? 0.7
         let decodedReasoningEnabled = try container.decodeIfPresent(Bool.self, forKey: .reasoningEnabled)
@@ -65,6 +70,7 @@ struct AppSettings: Codable {
 
         self.apiKey = try container.decodeIfPresent(String.self, forKey: .apiKey) ?? ""
         self.selectedModel = Self.normalizedModel(decodedModel)
+        self.useLocalServer = decodedUseLocalServer
         self.compressionQuality = decodedCompressionQuality
         self.reasoningEnabled = decodedReasoningEnabled ?? Self.defaultReasoningEnabled
         self.reasoningEffort = Self.normalizedReasoningEffort(
@@ -113,6 +119,29 @@ struct AppSettings: Codable {
 
     static func supportsReasoning(for modelID: String) -> Bool {
         modelOption(for: modelID)?.supportsReasoning ?? false
+    }
+
+    var plannerRequestTarget: AIRequestTarget {
+        .openRouter(
+            model: selectedModel,
+            apiKey: apiKey
+        )
+    }
+
+    var requestTarget: AIRequestTarget {
+        if useLocalServer {
+            return .localVLLM(apiKey: apiKey)
+        }
+
+        return plannerRequestTarget
+    }
+
+    var requiresAPIKey: Bool {
+        true
+    }
+
+    var plannerRequiresAPIKey: Bool {
+        true
     }
 
     private static func normalizedModel(_ model: String) -> String {

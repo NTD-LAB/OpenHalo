@@ -1,34 +1,35 @@
 import Foundation
 
 actor OpenRouterClient {
-    private let baseURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
     private let session: URLSession
 
-    init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 60
-        config.timeoutIntervalForResource = 120
-        self.session = URLSession(configuration: config)
+    init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 60
+            config.timeoutIntervalForResource = 120
+            self.session = URLSession(configuration: config)
+        }
     }
 
     func analyzeScreenshot(
         base64Image: String,
         userQuery: String,
-        model: String,
-        apiKey: String,
+        target: AIRequestTarget,
         systemPrompt: String,
         reasoning: ReasoningConfiguration?,
         rawContentHandler: (@Sendable (String) -> Void)? = nil
     ) async throws -> AIAnalysisResponse {
         try await sendStructuredJSONRequest(
-            model: model,
-            apiKey: apiKey,
+            target: target,
             systemPrompt: systemPrompt,
             userParts: [
                 .text(userQuery),
                 .imageURL("data:image/jpeg;base64,\(base64Image)"),
             ],
-            maxTokens: 768,
+            maxTokens: target.includeOpenRouterHeaders ? 768 : 256,
             reasoning: reasoning,
             structuredResponseFormat: Self.analysisResponseFormat,
             responseType: AIAnalysisResponse.self,
@@ -39,15 +40,13 @@ actor OpenRouterClient {
     func planIntent(
         base64Image: String,
         userPrompt: String,
-        model: String,
-        apiKey: String,
+        target: AIRequestTarget,
         systemPrompt: String,
         reasoning: ReasoningConfiguration?,
         rawContentHandler: (@Sendable (String) -> Void)? = nil
     ) async throws -> AIIntentPlannerResponse {
         try await sendStructuredJSONRequest(
-            model: model,
-            apiKey: apiKey,
+            target: target,
             systemPrompt: systemPrompt,
             userParts: [
                 .text(userPrompt),
@@ -64,15 +63,13 @@ actor OpenRouterClient {
     func refineHighlight(
         base64Images: [String],
         userPrompt: String,
-        model: String,
-        apiKey: String,
+        target: AIRequestTarget,
         systemPrompt: String,
         reasoning: ReasoningConfiguration?,
         rawContentHandler: (@Sendable (String) -> Void)? = nil
     ) async throws -> AIHighlightRefinementResponse {
         try await sendStructuredJSONRequest(
-            model: model,
-            apiKey: apiKey,
+            target: target,
             systemPrompt: systemPrompt,
             userParts: [.text(userPrompt)] + base64Images.map { .imageURL("data:image/jpeg;base64,\($0)") },
             maxTokens: 384,
@@ -84,8 +81,7 @@ actor OpenRouterClient {
     }
 
     private func sendStructuredJSONRequest<Response: Decodable>(
-        model: String,
-        apiKey: String,
+        target: AIRequestTarget,
         systemPrompt: String,
         userParts: [ContentPart],
         maxTokens: Int,
@@ -96,8 +92,7 @@ actor OpenRouterClient {
     ) async throws -> Response {
         do {
             return try await sendJSONRequest(
-                model: model,
-                apiKey: apiKey,
+                target: target,
                 systemPrompt: systemPrompt,
                 userParts: userParts,
                 maxTokens: maxTokens,
@@ -112,8 +107,7 @@ actor OpenRouterClient {
             }
 
             return try await sendJSONRequest(
-                model: model,
-                apiKey: apiKey,
+                target: target,
                 systemPrompt: systemPrompt,
                 userParts: userParts,
                 maxTokens: maxTokens,
@@ -126,8 +120,7 @@ actor OpenRouterClient {
     }
 
     private func sendJSONRequest<Response: Decodable>(
-        model: String,
-        apiKey: String,
+        target: AIRequestTarget,
         systemPrompt: String,
         userParts: [ContentPart],
         maxTokens: Int,
@@ -137,7 +130,7 @@ actor OpenRouterClient {
         rawContentHandler: (@Sendable (String) -> Void)?
     ) async throws -> Response {
         let request = OpenRouterRequest(
-            model: model,
+            model: target.model,
             messages: [
                 .system(content: systemPrompt),
                 .user(content: userParts),
@@ -149,12 +142,16 @@ actor OpenRouterClient {
             plugins: [.responseHealing]
         )
 
-        var urlRequest = URLRequest(url: baseURL)
+        var urlRequest = URLRequest(url: target.baseURL)
         urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if let apiKey = target.apiKey, !apiKey.isEmpty {
+            urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("OpenHalo/1.0", forHTTPHeaderField: "HTTP-Referer")
-        urlRequest.setValue("OpenHalo", forHTTPHeaderField: "X-Title")
+        if target.includeOpenRouterHeaders {
+            urlRequest.setValue("OpenHalo/1.0", forHTTPHeaderField: "HTTP-Referer")
+            urlRequest.setValue("OpenHalo", forHTTPHeaderField: "X-Title")
+        }
         urlRequest.httpBody = try JSONEncoder().encode(request)
 
         let (data, response) = try await session.data(for: urlRequest)

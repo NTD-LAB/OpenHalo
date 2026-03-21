@@ -422,7 +422,7 @@ struct AIAnalysisResponse: Decodable {
         }
     }
 
-    struct BoundingBox: Decodable, Equatable {
+    struct BoundingBox: Decodable, Equatable, Sendable {
         let x: Double
         let y: Double
         let width: Double

@@ -27,14 +27,6 @@ final class AppState: ObservableObject {
         messages.append(userMessage)
         isProcessing = true
 
-        guard !settings.apiKey.isEmpty else {
-            messages.append(ChatMessage(
-                role: .assistant,
-                content: "Please set your OpenRouter API key in Settings first."
-            ))
-            isProcessing = false
-            return
-        }
         defer { isProcessing = false }
 
         do {
@@ -69,6 +61,7 @@ final class AppState: ObservableObject {
     }
 
     private func startPlannerFlow(for text: String) async throws {
+        guard ensurePlannerAPIKeyIfNeeded() else { return }
         let planning = try await pipeline.planIntent(
             query: text,
             settings: settings
@@ -101,6 +94,7 @@ final class AppState: ObservableObject {
                 content: "请回复 1、2、3，或者选择 4 后自己描述你的目标。"
             ))
         case .freeform(let freeformText):
+            guard ensurePlannerAPIKeyIfNeeded() else { return }
             let nextRound = session.clarificationRound + 1
             let planning = try await pipeline.planIntent(
                 query: freeformText,
@@ -120,6 +114,7 @@ final class AppState: ObservableObject {
                 clarificationRound: nextRound
             )
         case .none:
+            guard ensurePlannerAPIKeyIfNeeded() else { return }
             let nextRound = session.clarificationRound + 1
             let planning = try await pipeline.planIntent(
                 query: text,
@@ -139,6 +134,17 @@ final class AppState: ObservableObject {
                 clarificationRound: nextRound
             )
         }
+    }
+
+    private func ensurePlannerAPIKeyIfNeeded() -> Bool {
+        guard !settings.plannerRequiresAPIKey || !settings.apiKey.isEmpty else {
+            messages.append(ChatMessage(
+                role: .assistant,
+                content: "Please set your OpenRouter API key in Settings first. Planner still runs on OpenRouter."
+            ))
+            return false
+        }
+        return true
     }
 
     private func handlePlannerResponse(
